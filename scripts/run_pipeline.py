@@ -21,7 +21,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--pages", type=int, default=1)
     ap.add_argument("--per-page", type=int, default=25)
-    ap.add_argument("--limit", type=int, default=50)
+    ap.add_argument("--limit", type=int, default=10)
     args = ap.parse_args()
 
     if not STATE_PATH.exists():
@@ -44,6 +44,34 @@ def main():
             jd = parse_job_detail(page, url)
             row = to_dict(jd)
             row["job_id"] = job_id_from_url(url)
+
+            import hashlib
+
+            desc = row.get("description") or ""
+            print("\n=== PRE-DB CHECK ===")
+            print("target_url:", url)
+            print("page_url:", page.url if hasattr(page, "url") else None)
+            print("desc_len:", len(desc))
+            print("desc_head:", desc[:120].replace("\n", " "))
+            print("desc_sha1:", hashlib.sha1(desc.encode("utf-8")).hexdigest())
+
+            # Gate 1: must still be on Handshake job detail page
+            if not page.url.startswith("https://app.joinhandshake.com/jobs/"):
+                print(f"❌ SKIP: navigated away from Handshake job page: {page.url}")
+                continue
+
+            # Gate 2: reject obvious UI chrome masquerading as description
+            desc = row.get("description") or ""
+            bad_markers = ["Explore Feed", "Inbox", "Career center", "Get the app", "Skip to content", "View all"]
+            if any(m in desc for m in bad_markers):
+                print("❌ SKIP: description looks like UI chrome (bad markers found)")
+                continue
+
+            # Gate 3: too short is suspicious (tune threshold later)
+            if len(desc) < 800:
+                print(f"❌ SKIP: description too short ({len(desc)})")
+                continue
+
 
             upsert_job(conn, row)
 

@@ -33,6 +33,9 @@ def main():
         a = links.first
         title = (a.inner_text() or "").strip().replace("\n", " ")
         href = a.get_attribute("href")
+        # remove ?searchId=
+        if href and "?searchId=" in href:
+            href = href.split("?searchId=")[0]
         print("Title:", title)
         print("Link:", BASE + href)
 

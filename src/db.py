@@ -29,6 +29,22 @@ CREATE TABLE IF NOT EXISTS job_skills (
   PRIMARY KEY (job_id, skill),
   FOREIGN KEY (job_id) REFERENCES jobs(job_id)
 );
+
+
+CREATE TABLE IF NOT EXISTS jobs_structured (
+  job_id TEXT PRIMARY KEY,
+  model TEXT NOT NULL,
+  schema_version TEXT NOT NULL,
+  prompt_version TEXT NOT NULL,
+  data_json TEXT NOT NULL,
+  confidence REAL,
+  error TEXT,
+  extracted_at_utc TEXT DEFAULT (datetime('now')),
+  FOREIGN KEY (job_id) REFERENCES jobs(job_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_jobs_structured_model ON jobs_structured(model);
+
 """
 
 def get_conn(db_path: Path = DB_PATH) -> sqlite3.Connection:
@@ -63,4 +79,18 @@ def replace_job_skills(conn: sqlite3.Connection, job_id: str, skills: Iterable[s
         "INSERT OR IGNORE INTO job_skills (job_id, skill) VALUES (?, ?)",
         [(job_id, s) for s in sorted(set(skills))]
     )
+    conn.commit()
+
+def upsert_job_structured(conn: sqlite3.Connection, row: Dict[str, Any]) -> None:
+    cols = [
+        "job_id","model","schema_version","prompt_version",
+        "data_json","confidence","error"
+    ]
+    placeholders = ",".join(["?"] * len(cols))
+    assignments = ",".join([f"{c}=excluded.{c}" for c in cols[1:]])
+    sql = f"""
+    INSERT INTO jobs_structured ({",".join(cols)}) VALUES ({placeholders})
+    ON CONFLICT(job_id) DO UPDATE SET {assignments}
+    """
+    conn.execute(sql, [row.get(c) for c in cols])
     conn.commit()

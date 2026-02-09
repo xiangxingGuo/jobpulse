@@ -6,28 +6,59 @@ import re
 from playwright.sync_api import Page
 
 
+# def _click_expanders(page: Page) -> None:
+#     """
+#     Handshake job detail often truncates sections behind 'More' buttons.
+#     We'll click a few common variants if visible.
+#     """
+#     candidates = [
+#     "button:has-text('More')",
+#     "button:has-text('Show more')",
+#     "button:has-text('See more')",
+#     ]
+
+#     for sel in candidates:
+#         loc = page.locator(sel)
+#         # click a few times if there are multiple expanders
+#         n = min(loc.count(), 6)
+#         for i in range(n):
+#             try:
+#                 btn = loc.nth(i)
+#                 if btn.is_visible():
+#                     btn.click(timeout=800)
+#                     page.wait_for_timeout(300)
+#             except Exception:
+#                 continue
+
 def _click_expanders(page: Page) -> None:
     """
-    Handshake job detail often truncates sections behind 'More' buttons.
-    We'll click a few common variants if visible.
+    Click "Show more / See more / More" buttons to expand truncated sections.
+    Must not navigate away from the current page.
     """
+    # Use role-based locator to avoid accidentally clicking links
     candidates = [
-        "button:has-text('More')",
-        "button:has-text('Show more')",
-        "button:has-text('See more')",
-        "a:has-text('More')",
-        "[role=button]:has-text('More')",
+        page.get_by_role("button", name=re.compile(r"^Show more\b", re.IGNORECASE)),
+        page.get_by_role("button", name=re.compile(r"^See more\b", re.IGNORECASE)),
+        page.get_by_role("button", name=re.compile(r"^More\b", re.IGNORECASE)),
     ]
-    for sel in candidates:
-        loc = page.locator(sel)
-        # click a few times if there are multiple expanders
+
+    for loc in candidates:
         n = min(loc.count(), 6)
         for i in range(n):
             try:
                 btn = loc.nth(i)
-                if btn.is_visible():
-                    btn.click(timeout=800)
-                    page.wait_for_timeout(300)
+                if not btn.is_visible():
+                    continue
+
+                before_url = page.url
+                btn.click(timeout=800)
+                page.wait_for_timeout(250)
+
+                # Hard guard: expanding must not navigate
+                if page.url != before_url:
+                    raise RuntimeError(
+                        f"Unexpected navigation after clicking expander: {before_url} -> {page.url}"
+                    )
             except Exception:
                 continue
 

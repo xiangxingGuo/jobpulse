@@ -11,3 +11,4 @@ wheels/
 __pycache__/
 data/auth_state.json
 data/db/
+data/raw/llm_debug/*
