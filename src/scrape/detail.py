@@ -97,25 +97,38 @@ def parse_job_detail(page: Page, url: str) -> JobDetail:
     _click_expanders(page)
     page.wait_for_timeout(500)
 
+    root = page.locator('[data-hook="job-details-page"]')
+
+    title = root.locator("h1").first.inner_text().strip()
+
+    jd = JobDetail(url=url, title=title)
+
+    company = root.locator('a[aria-label][href^="/e/"] div').first.inner_text().strip()
+
+    if not company:
+        about_emp = root.get_by_role("heading", name="About the employer").locator("xpath=ancestor::div[contains(@class,'sc-cYucNP')][1]")
+        company = about_emp.locator("h4").first.inner_text().strip()
+
+    jd.company = company
+    posted_line = root.locator("h1").locator("xpath=following::div[contains(.,'Posted') and contains(.,'Apply by')][1]").inner_text().strip()
+
+    import re
+    m = re.search(r"Posted\s+(.+?)(?:∙|\u2219)\s*Apply by\s+(.+)$", posted_line)
+    posted_text = m.group(1).strip() if m else None
+    apply_by_text = m.group(2).strip() if m else None
+
+    jd.posted_text = posted_text
+    jd.apply_by_text = apply_by_text
+
+    at = root.get_by_role("heading", name="At a glance").locator("xpath=ancestor::div[contains(@class,'sc-cYucNP')][1]")
+
+    desc_block = at.locator("xpath=following::div[contains(@class,'sc-cYucNP')][1]")
+    description_text = desc_block.inner_text().strip()
+    jd.description = _clean(description_text)
+
     # Strategy: use body text as robust fallback, then carve out fields.
     body = page.locator("body").inner_text()
 
-    # Title: usually appears in <title> and also as a heading on page.
-    title = page.title().split("|")[0].strip()
-    jd = JobDetail(url=url, title=title)
-
-    # Heuristic extraction from body text (robust across DOM changes)
-    # Company: often appears above title; but easiest is from page title after the first |
-    # Example: "Data Science Intern ... | Jobfair® | Handshake"
-    parts = page.title().split("|")
-    if len(parts) >= 2:
-        jd.company = parts[1].strip().replace("®", "®")
-
-    # Posted / apply by line: "Posted 2 weeks ago∙Apply by February 21, 2026 at 10:59 PM"
-    m = re.search(r"Posted\s+(.+?)(?:∙|\u2219)\s*Apply by\s+(.+)", body)
-    if m:
-        jd.posted_text = m.group(1).strip()
-        jd.apply_by_text = m.group(2).strip().split("\n")[0]
 
     # Pay: "$40–50/hr" or similar usually under "At a glance"
     m = re.search(r"\nAt a glance\n(.+)\n", body)
@@ -144,27 +157,6 @@ def parse_job_detail(page: Page, url: str) -> JobDetail:
                 jd.employment_type = ln
             if ln.startswith("Full-time∙From") or ln.startswith("Part-time∙From") or ln.startswith("From"):
                 jd.date_range_text = ln
-
-    # Description: best effort by anchoring from "About The Role" or similar headers
-    desc = None
-    anchor_headers = ["About The Role", "Job Description", "The Role", "Description"]
-    for h in anchor_headers:
-        if h in body:
-            # take text after header up to next known section
-            after = body.split(h, 1)[1]
-            # stop at known next sections
-            stop_headers = ["What they're looking for", "Qualifications", "Required Qualifications", "Benefits", "Application"]
-            end = len(after)
-            for sh in stop_headers:
-                idx = after.find(sh)
-                if idx != -1:
-                    end = min(end, idx)
-            desc = after[:end]
-            desc = _clean(desc)
-            break
-
-    # Fallback: use full body if anchor missing
-    jd.description = desc if desc else _clean(body)
 
     return jd
 
