@@ -11,6 +11,7 @@ STRICT RULES (must follow):
 - Use [] for missing list fields.
 - Do NOT add any keys outside the schema.
 - Keep the output concise. Do NOT write long sentences.
+- Do not leave fields empty if the information is explicitly present. Extract as many distinct skills/tools as possible. Aim for 8–20 items in required_skills+preferred_skills+tools when applicable
 
 
 LENGTH CONSTRAINTS (mandatory):

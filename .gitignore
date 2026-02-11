@@ -13,3 +13,4 @@ data/auth_state.json
 ~data/db/
 data/raw/*
 data/processed/*
+data/authentication/*
