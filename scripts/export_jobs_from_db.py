@@ -41,7 +41,7 @@ def export(job_id: str, raw_text: str) -> None:
 
     print(f"Saved RAW JD to:   {raw_path}")
     print(f"Saved CLEAN JD to: {clean_path}")
-    print("\nPreview (first 40 lines of CLEAN):")
+    # print("\nPreview (first 40 lines of CLEAN):")
     # for i, line in enumerate(cleaned.splitlines()[:40], start=1):
     #     print(f"{i:02d} | {line}")
 

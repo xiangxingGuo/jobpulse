@@ -19,9 +19,9 @@ def job_id_from_url(url: str) -> str:
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--pages", type=int, default=1)
+    ap.add_argument("--pages", type=int, default=10)
     ap.add_argument("--per-page", type=int, default=25)
-    ap.add_argument("--limit", type=int, default=10)
+    ap.add_argument("--limit", type=int, default=100)
     args = ap.parse_args()
 
     if not STATE_PATH.exists():
@@ -40,6 +40,16 @@ def main():
         print(f"Collected {len(links)} job links")
 
         for idx, url in enumerate(links, 1):
+            # randomly pause every few iterations to mimic human behavior and avoid anti-scraping measures
+            import random
+            import time
+            stop_time = random.randint(1, 10)
+            time.sleep(stop_time)
+            extra_flag = random.randint(1, 100)
+            if extra_flag <= 40:  # 40% chance of an extra pause
+                extra_time = random.randint(2, 8)
+                time.sleep(extra_time) 
+
             print(f"[{idx}/{len(links)}] Scraping detail: {url}")
             jd = parse_job_detail(page, url)
             row = to_dict(jd)
@@ -80,8 +90,8 @@ def main():
 
         browser.close()
 
-    build_report(conn, Path("data/reports/latest.md"))
-    print("✅ Report generated: data/reports/latest.md")
+    # build_report(conn, Path("data/reports/latest.md"))
+    # print("✅ Report generated: data/reports/latest.md")
 
 if __name__ == "__main__":
     main()

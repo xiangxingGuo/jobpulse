@@ -10,5 +10,6 @@ wheels/
 .venv
 __pycache__/
 data/auth_state.json
-data/db/
-data/raw/llm_debug/*
+~data/db/
+data/raw/*
+data/processed/*
