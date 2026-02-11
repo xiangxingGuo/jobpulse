@@ -64,7 +64,11 @@ class HFLocalExtractor:
         end = text.rfind("}")
 
         if start == -1 or end == -1:
-            raise ValueError("No JSON object found in model output")
+            # raise ValueError("No JSON object found in model output")
+                return {
+                    "error": "No JSON object found in model output",
+                    "raw_output": text
+                }
 
         json_str = text[start:end + 1]
         try:
