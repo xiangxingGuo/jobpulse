@@ -17,11 +17,17 @@ def job_id_from_url(url: str) -> str:
         raise ValueError(f"Cannot parse job_id from url: {url}")
     return m.group(1)
 
+def get_existing_job_ids(conn) -> set[int]:
+    cur = conn.cursor()
+    cur.execute("SELECT job_id FROM jobs;")
+    rows = cur.fetchall()
+    return list(set([int(row[0]) for row in rows]))
+
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--pages", type=int, default=10)
-    ap.add_argument("--per-page", type=int, default=25)
-    ap.add_argument("--limit", type=int, default=100)
+    ap.add_argument("--pages", type=int, default=20)
+    ap.add_argument("--per-page", type=int, default=50)
+    ap.add_argument("--limit", type=int, default=500)
     args = ap.parse_args()
 
     if not STATE_PATH.exists():
@@ -29,6 +35,8 @@ def main():
 
     conn = get_conn()
     init_db(conn)
+
+    processed_job_ids = get_existing_job_ids(conn)
 
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=False)  # Set to False to debug
@@ -38,6 +46,9 @@ def main():
         links = collect_job_links(page, pages=args.pages, per_page=args.per_page)
         links = links[: args.limit]
         print(f"Collected {len(links)} job links")
+
+        links = [link for link in links if job_id_from_url(link) not in processed_job_ids]
+        print(f"{len(links)} new job links after filtering out existing job_ids")
 
         for idx, url in enumerate(links, 1):
             # randomly pause every few iterations to mimic human behavior and avoid anti-scraping measures
@@ -57,13 +68,13 @@ def main():
 
             import hashlib
 
-            desc = row.get("description") or ""
-            print("\n=== PRE-DB CHECK ===")
-            print("target_url:", url)
-            print("page_url:", page.url if hasattr(page, "url") else None)
-            print("desc_len:", len(desc))
-            print("desc_head:", desc[:120].replace("\n", " "))
-            print("desc_sha1:", hashlib.sha1(desc.encode("utf-8")).hexdigest())
+            # desc = row.get("description") or ""
+            # print("\n=== PRE-DB CHECK ===")
+            # print("target_url:", url)
+            # print("page_url:", page.url if hasattr(page, "url") else None)
+            # print("desc_len:", len(desc))
+            # print("desc_head:", desc[:120].replace("\n", " "))
+            # print("desc_sha1:", hashlib.sha1(desc.encode("utf-8")).hexdigest())
 
             # Gate 1: must still be on Handshake job detail page
             if not page.url.startswith("https://app.joinhandshake.com/jobs/"):

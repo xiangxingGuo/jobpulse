@@ -3,6 +3,7 @@ from pathlib import Path
 from transformers import AutoTokenizer, AutoModelForCausalLM
 import torch
 
+from peft import PeftModel
 
 
 
@@ -13,6 +14,7 @@ class HFLocalExtractor:
         model_name: str,
         device: str = "cuda",
         max_new_tokens: int = 512,
+        lora_path: str | None = None,
     ):
         self.device = device
         self.max_new_tokens = max_new_tokens
@@ -22,13 +24,18 @@ class HFLocalExtractor:
             trust_remote_code=True
         )
         dtype = torch.float16 if device == "cuda" else torch.float32
-
+        
         self.model = AutoModelForCausalLM.from_pretrained(
             model_name,
             dtype=dtype,
             device_map="auto" if device == "cuda" else None,
             trust_remote_code=True,
         )
+
+        if lora_path:
+            self.model = PeftModel.from_pretrained(self.model, lora_path)
+            self.model.eval()
+
 
     def extract(self, prompt: str) -> dict:
         inputs = self.tokenizer(

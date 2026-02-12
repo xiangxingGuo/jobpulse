@@ -16,12 +16,14 @@ OUT_GOLD_TEMPLATE = OUT_DIR / "jd_struct_gold_template.jsonl"
 SYSTEM_MSG = "You are an information extraction system."
 
 REQUIRED_KEYS = [
-    "role_title", "seniority", "location", "employment_type",
-    "required_skills", "preferred_skills", "tools",
-    "years_experience", "responsibilities", "qualifications"
+    "role_title", "company", "location", "employment_type",
+    "remote_policy", "responsibilities", "requirements",
+    "preferred_qualifications", "skills", "years_experience_min",
+    "degree_level", "visa_sponsorship"
 ]
 
-LIST_KEYS = ["required_skills", "preferred_skills", "tools", "responsibilities", "qualifications"]
+LIST_KEYS = ["responsibilities", "requirements", 
+             "preferred_qualifications", "skills"]
 
 
 def load_teacher_json(job_id: str) -> Dict[str, Any]:
@@ -58,7 +60,7 @@ def make_example(job_id: str, jd_text: str, teacher: Dict[str, Any]) -> Dict[str
     }
 
 
-def main(seed: int = 42, val_size: int = 12) -> None:
+def main(seed: int = 42, val_size: int = 60) -> None:
     OUT_DIR.mkdir(parents=True, exist_ok=True)
 
     jd_paths = sorted(JD_DIR.glob("*.txt"))

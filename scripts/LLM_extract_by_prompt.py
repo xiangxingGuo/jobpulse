@@ -4,7 +4,7 @@ import tqdm
 
 from src.llm.providers.hf_local import HFLocalExtractor
 
-PROMPT_PATH = Path("src/llm/prompts/jd_extract_v3.txt")
+PROMPT_PATH = Path("src/llm/prompts/jd_extract_v2.txt")
 
 def main():
     jd_paths = list(Path("data/raw/jd_txt").glob("*.txt"))
@@ -19,7 +19,7 @@ def main():
             device="cuda",
             max_new_tokens=512,
         )
-
+    
     for jd_path in tqdm.tqdm(jd_paths, desc="Processing job descriptions"):
         if jd_path.stem in processed:
             print(f"Skipping {jd_path.name}, already processed.")
