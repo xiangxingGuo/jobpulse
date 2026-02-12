@@ -30,6 +30,8 @@ def main():
 
         prompt = PROMPT_PATH.read_text().replace("{{JOB_DESCRIPTION}}", jd_text)
 
+        assert "{{JOB_DESCRIPTION}}" in PROMPT_PATH.read_text(), "Prompt template must contain {{JOB_DESCRIPTION}} placeholder"
+
         out = extractor.extract(prompt)
 
         if out.get("error"):

@@ -37,10 +37,10 @@ SCHEMA:
   "visa_sponsorship": string | null
 }
 
-JOB DESCRIPTION:
-"""
-{JD_TEXT}
-"""
+====================
+JOB DESCRIPTION
+====================
+{{JOB_DESCRIPTION}}
 
 Remember:
 - Short, compact, structured

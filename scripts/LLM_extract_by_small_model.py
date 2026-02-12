@@ -4,21 +4,19 @@ import argparse
 
 from src.llm.providers.hf_local import HFLocalExtractor
 
-PROMPT_PATH = Path("src/llm/prompts/jd_extract_v1.txt")
+PROMPT_PATH = Path("src/llm/prompts/jd_extract_v2.txt")
+MODEL_NAME = "Qwen/Qwen2.5-0.5B-Instruct"
 
 def main():
-    argparser = argparse.ArgumentParser(description="Extract structured data from job descriptions using a local LLM.")
-    argparser.add_argument("--model", type=str, default="Qwen2.5-0.5B-Instruct", help="Model name to use for extraction")
-    args = argparser.parse_args()
 
     jd_paths = list(Path("data/raw/jd_txt").glob("*.txt"))
-    json_save_base_path = Path(f"data/processed/llm/{args.model}/jd_structured")
+    json_save_base_path = Path(f"data/processed/llm/{MODEL_NAME}/jd_structured")
     if not json_save_base_path.exists():
         json_save_base_path.mkdir(parents=True)
 
     processed = set(p.stem for p in json_save_base_path.glob("*.json"))
 
-    model_full_name = f"Qwen/{args.model}"
+    model_full_name = MODEL_NAME
     extractor = HFLocalExtractor(
             model_name=model_full_name,
             device="cuda",
@@ -41,7 +39,7 @@ def main():
             print(f"Error processing {jd_path.name}: {out['error']}")
 
             # Optionally save the raw output for debugging
-            error_save_path = Path(f"data/processed/llm/{args.model}/errors") / f"{jd_path.stem}_error.txt"
+            error_save_path = Path(f"data/processed/llm/{MODEL_NAME}/errors") / f"{jd_path.stem}_error.txt"
             error_save_path.parent.mkdir(parents=True, exist_ok=True)
             error_save_path.write_text(out.get("raw_output", ""))
             print(f"Saved raw output to {error_save_path}")
@@ -51,7 +49,7 @@ def main():
         json_save_path.write_text(json.dumps(out, indent=2, ensure_ascii=False))
         print(f"Saved structured data to {json_save_path}")
     
-    print(len(list(Path(f"data/processed/llm/{args.model}/jd_structured").glob("*.json"))), "files processed.")
+    print(len(list(Path(f"data/processed/llm/{MODEL_NAME}/jd_structured").glob("*.json"))), "files processed.")
 if __name__ == "__main__":
     main()
     
