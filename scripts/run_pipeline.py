@@ -25,9 +25,9 @@ def get_existing_job_ids(conn) -> set[int]:
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--pages", type=int, default=20)
+    ap.add_argument("--pages", type=int, default=40)
     ap.add_argument("--per-page", type=int, default=50)
-    ap.add_argument("--limit", type=int, default=500)
+    ap.add_argument("--limit", type=int, default=1000)
     args = ap.parse_args()
 
     if not STATE_PATH.exists():
