@@ -21,7 +21,7 @@ MODEL_NAME = "Qwen/Qwen2.5-0.5B-Instruct"
 def main():
     # only one for smoke test
     # data/raw/jd_txt/1035622.txt
-    jd_path = Path("data/raw/jd_txt/1035622.txt")
+    jd_path = Path("data/raw/jd_txt/7093570.txt")
     jd_text = jd_path.read_text()
 
     prompt = PROMPT_PATH.read_text().replace("{{JOB_DESCRIPTION}}", jd_text)
@@ -37,7 +37,11 @@ def main():
 
     out = extractor.extract(prompt)
 
-    print(out)
+    if out.error:
+        print(f"Error: {out.error}")
+        print(f"Raw output: {out.raw_output}")
+    else:
+        print(json.dumps(out.extracted_data, indent=2))
 
 if __name__ == "__main__":    
     main()
