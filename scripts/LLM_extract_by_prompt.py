@@ -4,15 +4,10 @@ import tqdm
 
 from src.llm.providers.hf_plain import HFPlainExtractor
 
-REQUIRED_KEYS = [
-    "role_title", "company", "location", "employment_type",
-    "remote_policy", "responsibilities", "requirements",
-    "preferred_qualifications", "skills", "years_experience_min",
-    "degree_level", "visa_sponsorship"
-]
+from src.eval.extraction_metrics import (
+    LIST_KEYS, LIST_KEYS
+)
 
-LIST_KEYS = ["responsibilities", "requirements", 
-             "preferred_qualifications", "skills"]
 
 PROMPT_PATH = Path("src/llm/prompts/jd_extract_v2.txt")
 

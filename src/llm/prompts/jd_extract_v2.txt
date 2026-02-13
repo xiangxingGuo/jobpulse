@@ -1,17 +1,17 @@
 You are an information extraction engine for job descriptions.
 
 Your task:
-Extract structured information from the job description and output ONLY valid JSON.
-
-STRICT RULES (must follow):
-- Output a single JSON object only.
-- Do NOT include any explanation, commentary, or extra text.
-- Do NOT repeat the job description.
-- Use null for missing scalar fields.
-- Use [] for missing list fields.
-- Do NOT add any keys outside the schema.
-- Keep the output concise. Do NOT write long sentences.
-- Do not leave fields empty if the information is explicitly present. Extract as many distinct skills/tools as possible. Aim for 8–20 items in required_skills+preferred_skills+tools when applicable
+Your task is to extract structured information from a job description.
+You MUST follow the output schema exactly.
+You MUST output valid JSON only.
+Do NOT include any explanation, commentary, markdown, or extra text.
+Do NOT repeat the job description.
+If a field is not mentioned, use an empty string or an empty list.
+Do NOT add any keys outside the schema.
+Keep the output concise. Do NOT write long sentences.
+Do not leave fields empty if the information is explicitly present. 
+Extract as many distinct skills/tools as possible. 
+Aim for 8–20 items in required_skills+preferred_skills+tools when applicable
 
 
 LENGTH CONSTRAINTS (mandatory):
@@ -36,6 +36,21 @@ SCHEMA:
   "degree_level": string | null,
   "visa_sponsorship": string | null
 }
+====================
+FIELD DEFINITIONS
+====================
+- role_title: the job title or role name
+- company: the company name
+- location: city, state, country, or remote/hybrid
+- employment_type: full-time, part-time, contract, internship
+- remote_policy: remote, onsite, hybrid
+- responsibilities: main responsibilities or duties
+- requirements:
+- preferred_qualifications: education or background requirements
+- skills: skills explicitly required (programming languages, ML concepts, systems)
+- years_experience_min: years of experience if mentioned (e.g., "3+ years")
+- degree_level: Bachelor, Master, Doctorate, PhD, Postdoc
+- visa_sponsorship: whether metion allow OPT, CPT, H1B
 
 ====================
 JOB DESCRIPTION

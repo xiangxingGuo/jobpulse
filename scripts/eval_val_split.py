@@ -44,7 +44,7 @@ def main():
         model_name=STUDENT_MODEL,
         device="cuda",
         max_new_tokens=512,
-        lora_path="models/qwen2.5-0.5b-jd-lora"  # <-- change this if you want to test a different model
+        # lora_path="models/qwen2.5-0.5b-jd-lora"  # <-- change this if you want to test a different model
     )
 
     student_preds: List[Dict[str, Any]] = []
