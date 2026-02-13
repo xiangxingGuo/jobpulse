@@ -6,7 +6,7 @@ from src.llm.providers.hf_local import HFLocalExtractor
 PROMPT_PATH = Path("src/llm/prompts/jd_extract_v1.txt")
 
 def main():
-    # 取你现有的一条 JD 文本（你已经有 data/raw/jd_txt/10704289.txt）
+    # only one for smoke test
     jd_path = Path("data/raw/jd_txt/10704289.txt")
     jd_text = jd_path.read_text()
 
