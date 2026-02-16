@@ -5,7 +5,7 @@ import tqdm
 from src.llm.providers.hf_plain import HFPlainExtractor
 
 from src.eval.extraction_metrics import (
-    LIST_KEYS, LIST_KEYS
+    REQUIRED_KEYS, LIST_KEYS
 )
 
 

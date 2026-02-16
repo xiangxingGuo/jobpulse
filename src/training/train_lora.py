@@ -21,7 +21,7 @@ TRAIN_PATH = "src/training/datasets/jd_struct_train.jsonl"
 VAL_PATH = "src/training/datasets/jd_struct_val.jsonl"
 
 OUT_DIR = "models/qwen2.5-0.5b-jd-lora"
-MAX_LENGTH = 1024  # keep conservative for 8GB
+MAX_LENGTH = 512  # keep conservative for 8GB
 EPOCHS = 3
 LR = 2e-4
 BATCH_SIZE = 1

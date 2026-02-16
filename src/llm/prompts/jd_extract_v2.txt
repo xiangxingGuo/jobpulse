@@ -39,18 +39,80 @@ SCHEMA:
 ====================
 FIELD DEFINITIONS
 ====================
-- role_title: the job title or role name
-- company: the company name
-- location: city, state, country, or remote/hybrid
-- employment_type: full-time, part-time, contract, internship
-- remote_policy: remote, onsite, hybrid
-- responsibilities: main responsibilities or duties
+
+- role_title:
+  The official job title as stated in the job description.
+  Do NOT infer or rewrite.
+  Use the exact wording if explicitly provided.
+  If multiple titles appear, use the primary advertised title.
+
+- company:
+  The name of the hiring company or organization.
+  Use the explicit company name if mentioned.
+  Do NOT infer from email domains or external knowledge.
+  If not clearly stated, return null.
+
+- location:
+  The geographic location of the role (city, state, country).
+  If multiple locations are listed, choose the primary one.
+  If the role is remote-only with no physical location, return null.
+
+- employment_type:
+  The job type such as:
+  "Full-time", "Part-time", "Internship", "Contract", "Temporary".
+  Only use values explicitly mentioned in the description.
+  If unclear, return null.
+
+- remote_policy:
+  One of:
+  "Remote", "Hybrid", "Onsite"
+  Determine only if clearly stated.
+  If ambiguous or not mentioned, return null.
+
+- responsibilities:
+  A list of core job duties or tasks.
+  Extract concise bullet-style phrases.
+  Avoid long paragraphs.
+  Do NOT summarize broadly — keep concrete task descriptions.
+  Include 3–10 items when available.
+
 - requirements:
-- preferred_qualifications: education or background requirements
-- skills: skills explicitly required (programming languages, ML concepts, systems)
-- years_experience_min: years of experience if mentioned (e.g., "3+ years")
-- degree_level: Bachelor, Master, Doctorate, PhD, Postdoc
-- visa_sponsorship: whether metion allow OPT, CPT, H1B
+  A list of required qualifications or mandatory criteria.
+  Include required skills, certifications, education, or experience.
+  Only include explicitly required items.
+  Include 3–15 items when available.
+
+- preferred_qualifications:
+  A list of optional or “nice-to-have” qualifications.
+  Only include items clearly marked as preferred or optional.
+  Include 1–10 items when available.
+
+- skills:
+  A list of concrete technical skills, tools, frameworks, or programming languages explicitly mentioned.
+  Examples: "Python", "SQL", "PyTorch", "TensorFlow", "AWS", "Docker".
+  Do NOT include soft skills unless explicitly required.
+  Deduplicate entries.
+  Include 5–20 items when possible.
+
+- years_experience_min:
+  The minimum required years of experience.
+  Return an integer (e.g., 2, 3, 5).
+  If a range is given (e.g., 3–5 years), return the lower bound.
+  If not explicitly stated, return null.
+
+- degree_level:
+  The minimum education level required.
+  Examples:
+  "High School", "Associate", "Bachelor", "Master", "PhD".
+  If multiple degrees are listed, choose the minimum acceptable level.
+  If not stated, return null.
+
+- visa_sponsorship:
+  Return:
+  "Yes", "No", or null.
+  Only determine this if explicitly stated.
+  If not mentioned, return null.
+
 
 ====================
 JOB DESCRIPTION
@@ -59,3 +121,4 @@ JOB DESCRIPTION
 
 Remember:
 - Short, compact, structured
+- MUST output valid JSON only

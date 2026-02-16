@@ -5,6 +5,96 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Sequence
 
+def _strip_code_fences(text: str) -> str:
+    t = text.strip()
+    # remove leading ```json or ``` and trailing ```
+    if t.startswith("```"):
+        # remove first fence line
+        lines = t.splitlines()
+        if len(lines) >= 2 and lines[0].startswith("```"):
+            # drop first line
+            lines = lines[1:]
+            # drop last fence if present
+            if lines and lines[-1].strip() == "```":
+                lines = lines[:-1]
+            t = "\n".join(lines).strip()
+    return t
+
+
+def _extract_jsonish_tail(text: str) -> str:
+    """
+    Extract a likely JSON substring from a mixed model output.
+    Strategy: find the first '{' or '['; keep from that to end.
+    """
+    t = text
+    i_obj = t.find("{")
+    i_arr = t.find("[")
+    if i_obj == -1 and i_arr == -1:
+        return t.strip()
+    if i_obj == -1:
+        start = i_arr
+    elif i_arr == -1:
+        start = i_obj
+    else:
+        start = min(i_obj, i_arr)
+    return t[start:].strip()
+
+def repair_json_text(text: str, max_append: int = 256) -> str:
+    """
+    Attempt to repair common JSON truncation issues by:
+    - stripping code fences
+    - extracting JSON-like tail from the first '{' or '['
+    - balancing brackets/braces using a stack (ignoring chars inside strings)
+
+    Returns repaired JSON string (best effort).
+    """
+    t = _strip_code_fences(text)
+    t = _extract_jsonish_tail(t)
+
+    # Balance braces/brackets with a stack, ignoring content inside strings
+    stack: List[str] = []
+    in_str = False
+    escape = False
+
+    for ch in t:
+        if in_str:
+            if escape:
+                escape = False
+            elif ch == "\\":
+                escape = True
+            elif ch == '"':
+                in_str = False
+            continue
+        else:
+            if ch == '"':
+                in_str = True
+                continue
+
+            if ch in "{[":
+                stack.append(ch)
+            elif ch in "}]":
+                if not stack:
+                    # extra closing bracket; keep it (or you could drop it)
+                    continue
+                top = stack[-1]
+                if (top == "{" and ch == "}") or (top == "[" and ch == "]"):
+                    stack.pop()
+                else:
+                    # mismatched closing; ignore (or you could try to fix)
+                    continue
+
+    # Append closers for anything left open
+    closes = []
+    for opener in reversed(stack):
+        closes.append("}" if opener == "{" else "]")
+
+    if closes:
+        # avoid runaway append
+        closers = "".join(closes)[:max_append]
+        t = t + closers
+
+    return t
+
 
 # ---------- Data structures ----------
 
@@ -82,13 +172,24 @@ class BaseExtractor(ABC):
             if not isinstance(obj, dict):
                 raise ValueError(f"Parsed JSON is not an object/dict: {type(obj)}")
             return obj
-        except json.JSONDecodeError:
-            # Fallback
-            obj = self._extract_last_json_object(text)
+        except Exception:
+            pass
+
+        # Repair path
+        repaired = repair_json_text(text)
+        try:
+            obj = json.loads(repaired)
             if not isinstance(obj, dict):
-                raise ValueError(f"Parsed JSON is not an object/dict: {type(obj)}")
+                raise ValueError(f"Repaired JSON is not an object/dict: {type(obj)}")
             return obj
-    
+        except Exception:
+            pass
+
+        # Last resort: fall back
+        obj = self._extract_last_json_object(text)
+        if not isinstance(obj, dict):
+            raise ValueError(f"Extracted JSON is not an object/dict: {type(obj)}")
+        return obj
 
     def _extract_last_json_object(self, text: str) -> Any:
         """

@@ -3,6 +3,11 @@ import random
 from pathlib import Path
 from typing import Dict, Any, List, Tuple
 
+from src.eval.extraction_metrics import (
+    REQUIRED_KEYS, LIST_KEYS
+)
+
+
 PROMPT_PATH = Path("src/llm/prompts/jd_extract_v2.txt")
 
 JD_DIR = Path("data/raw/jd_txt")
@@ -14,16 +19,6 @@ OUT_VAL = OUT_DIR / "jd_struct_val.jsonl"
 OUT_GOLD_TEMPLATE = OUT_DIR / "jd_struct_gold_template.jsonl"
 
 SYSTEM_MSG = "You are an information extraction system."
-
-REQUIRED_KEYS = [
-    "role_title", "company", "location", "employment_type",
-    "remote_policy", "responsibilities", "requirements",
-    "preferred_qualifications", "skills", "years_experience_min",
-    "degree_level", "visa_sponsorship"
-]
-
-LIST_KEYS = ["responsibilities", "requirements", 
-             "preferred_qualifications", "skills"]
 
 
 def load_teacher_json(job_id: str) -> Dict[str, Any]:

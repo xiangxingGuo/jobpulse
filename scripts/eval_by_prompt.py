@@ -26,8 +26,8 @@ def main():
         model_name=args.model_name,
         device=args.device,
         max_new_tokens=args.max_new_tokens,
-        required_keys=REQUIRED_KEYS,
-        list_keys=LIST_KEYS,
+        # required_keys=REQUIRED_KEYS,
+        # list_keys=LIST_KEYS,
     )
 
     val = load_val()
