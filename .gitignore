@@ -14,4 +14,4 @@ data/auth_state.json
 # data/raw/*
 # data/processed/*
 data/authentication/*
-models/*
+# models/*
