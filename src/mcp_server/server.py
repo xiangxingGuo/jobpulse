@@ -6,6 +6,8 @@ from .tools_fetch import fetch_jd
 from .tools_extract import extract_local
 from .tools_qc import qc_validate
 from .tools_report import generate_report_api
+from .tools_extract_api import extract_api
+
 
 mcp = FastMCP("jobpulse")
 
@@ -14,6 +16,7 @@ mcp.tool()(fetch_jd)
 mcp.tool()(extract_local)
 mcp.tool()(qc_validate)
 mcp.tool()(generate_report_api)
+mcp.tool()(extract_api)
 
 def main():
     # stdio: the most common local process method (Cursor/Claude Desktop/Agent SDK are also commonly used)

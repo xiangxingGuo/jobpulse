@@ -30,7 +30,9 @@ def extract_local(
     prompt_name: str = "jd_extract_v2",
     model: str = "Qwen/Qwen2.5-0.5B-Instruct",
     lora_path: Optional[str] = None,
-    mode: str = "chat_lora",  # "plain" or "chat_lora"
+    mode: str = "plain",  # "plain" or "chat_lora"
+    device: str = "cuda",
+    max_new_tokens: int = 1024
 ) -> ExtractLocalOutput:
     """
     Run local extraction to produce strict JSON for the schema.
@@ -47,9 +49,9 @@ def extract_local(
     }
 
     if mode == "plain":
-        extractor = HFPlainExtractor(model_name=model, device="cuda")
+        extractor = HFPlainExtractor(model_name=model, device=device, max_new_tokens=max_new_tokens)
     elif mode == "chat_lora":
-        extractor = HFChatLoRAExtractor(base_model=model, lora_path=lora_path, device="cuda")
+        extractor = HFChatLoRAExtractor(base_model=model, lora_path=lora_path, device=device, max_new_tokens=max_new_tokens)
     else:
         raise ValueError(f"Unknown mode: {mode}")
 

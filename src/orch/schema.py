@@ -66,6 +66,8 @@ class ExtractLocalInput(TypedDict, total=True):
     model: str        # e.g., "Qwen/Qwen2.5-0.5B-Instruct"
     lora_path: Optional[str]
     mode: Literal["plain", "chat_lora"]  # plain prompt vs chat-template(+LoRA)
+    device: str     # "cuda" or "cpu" (allow override for testing on CPU)
+    max_new_tokens: int
 
 
 class ExtractLocalOutput(TypedDict, total=True):
