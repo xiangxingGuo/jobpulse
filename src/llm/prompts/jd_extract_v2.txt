@@ -4,6 +4,7 @@ Your task:
 Your task is to extract structured information from a job description.
 You MUST follow the output schema exactly.
 You MUST output valid JSON only.
+Do NOT include reasoning, analysis, explanations, markdown, or code fences.
 Do NOT include any explanation, commentary, markdown, or extra text.
 Do NOT repeat the job description.
 If a field is not mentioned, use an empty string or an empty list.

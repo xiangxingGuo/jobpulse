@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Tuple, List, Literal
 
 from src.orch.schema import ExtractLocalOutput, JobStructured
 from src.llm.providers.hf_plain import HFPlainExtractor
@@ -28,10 +28,11 @@ def extract_local(
     job_id: str,
     jd_text: str,
     prompt_name: str = "jd_extract_v2",
-    model: str = "Qwen/Qwen2.5-0.5B-Instruct",
+    # model: str = "Qwen/Qwen2.5-0.5B-Instruct",
+    model: Literal["Qwen/Qwen2.5-0.5B-Instruct", "Qwen/Qwen2-3B-Instruct"] = "Qwen/Qwen2.5-0.5B-Instruct",
     lora_path: Optional[str] = None,
-    mode: str = "plain",  # "plain" or "chat_lora"
-    device: str = "cuda",
+    mode: Literal["plain", "chat_lora"] = "plain",
+    device: Literal["cuda", "cpu"] = "cuda",
     max_new_tokens: int = 1024
 ) -> ExtractLocalOutput:
     """
