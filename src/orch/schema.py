@@ -84,7 +84,7 @@ class ExtractAPIInput(TypedDict, total=True):
     job_id: str
     jd_text: str
     prompt_name: str
-    provider: Literal["openai_compat"]    # keep abstract
+    provider: Literal["openai", "nvidia"]  # OpenAI-compatible providers
     model: str                            # e.g., "gpt-4o-mini" or "cheap-model"
     temperature: float
     max_tokens: int
@@ -138,7 +138,7 @@ class ReportInput(TypedDict, total=True):
     qc: QCResult
     match: Optional[MatchOutput]
     resume_text: Optional[str]
-    provider: Literal["openai_compat"]
+    provider: Literal["openai", "nvidia"]  # OpenAI-compatible providers
     model: str
     temperature: float
     max_tokens: int
