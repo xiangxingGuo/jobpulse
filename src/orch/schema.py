@@ -88,6 +88,8 @@ class ExtractAPIInput(TypedDict, total=True):
     model: str                            # e.g., "gpt-4o-mini" or "cheap-model"
     temperature: float
     max_tokens: int
+    thinking: Literal["auto", "disabled", "enabled"]
+
 
 
 class ExtractAPIOutput(TypedDict, total=True):
@@ -142,6 +144,8 @@ class ReportInput(TypedDict, total=True):
     model: str
     temperature: float
     max_tokens: int
+    thinking: Literal["auto", "disabled", "enabled"]
+
 
 
 class ReportOutput(TypedDict, total=True):

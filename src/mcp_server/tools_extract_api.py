@@ -213,8 +213,9 @@ async def extract_api(
     prompt_name: str = "jd_extract_v2",
     provider: Literal["openai", "nvidia"] = "nvidia",
     model: Optional[str] = None,
-    temperature: float = 0.0,
+    temperature: float = 0.6,
     max_tokens: int = 900,
+    thinking: Literal["auto", "disabled", "enabled"] = "disabled",
 ) -> ExtractAPIOutput:
     """
     Extraction using an OpenAI-compatible API provider.
@@ -239,7 +240,7 @@ async def extract_api(
         "Do not include any explanation, markdown, or extra text."
     )
 
-    payload = {
+    payload: Dict[str, Any] = {
         "model": model,
         "temperature": float(temperature),
         "max_tokens": int(max_tokens),
@@ -248,6 +249,19 @@ async def extract_api(
             {"role": "user", "content": prompt},
         ],
     }
+
+    # Kimi/NVIDIA: disable thinking by default unless explicitly enabled
+    effective_thinking = thinking
+    if effective_thinking == "auto":
+        effective_thinking = "disabled" if provider == "nvidia" else "auto"
+
+    if effective_thinking == "disabled":
+        payload["extra_body"] = {"thinking": {"type": "disabled"}}
+    elif effective_thinking == "enabled":
+        payload["extra_body"] = {"thinking": {"type": "enabled"}}
+
+    if provider == "openai":
+        payload.pop("extra_body", None)  # OpenAI doesn't support thinking control (ignore if present)
 
     client = OpenAICompatClient(provider=prov)
     resp = await client.chat_completions(payload)

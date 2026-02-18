@@ -8,7 +8,7 @@ import httpx
 from .openai_compat_providers import PROVIDERS, ProviderName
 
 class OpenAICompatClient:
-    def __init__(self, provider: ProviderName, timeout: float = 90.0) -> None:
+    def __init__(self, provider: ProviderName, timeout: float = 600.0) -> None:
         cfg = PROVIDERS[provider]
         api_key = os.environ.get(cfg.api_key_env, "")
         if not api_key:
@@ -24,5 +24,10 @@ class OpenAICompatClient:
         headers = {"Authorization": f"Bearer {self.api_key}"}
         async with httpx.AsyncClient(timeout=self.timeout) as client:
             r = await client.post(url, headers=headers, json=payload)
-            r.raise_for_status()
+            try:
+                r.raise_for_status()
+            except httpx.HTTPStatusError as e:
+                # include response body for debugging (OpenAI returns JSON error)
+                body = r.text
+                raise RuntimeError(f"HTTP {r.status_code} from {url}: {body}") from e
             return r.json()

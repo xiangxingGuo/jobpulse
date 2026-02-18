@@ -69,6 +69,7 @@ async def generate_report_api(
     model: Optional[str] = None,
     temperature: float = 0.2,
     max_tokens: int = 900,
+    thinking: Literal["auto", "disabled", "enabled"] = "disabled",
 ) -> ReportOutput:
     """
     Generate a markdown report using an OpenAI-compatible API provider.
@@ -87,12 +88,25 @@ async def generate_report_api(
         {"role": "user", "content": user_content},
     ]
 
-    payload = {
+    payload: Dict[str, Any] = {
         "model": model,
         "messages": messages,
         "temperature": float(temperature),
         "max_tokens": int(max_tokens),
+        "stream": False,
     }
+
+    effective_thinking = thinking
+    if effective_thinking == "auto":
+        effective_thinking = "disabled" if provider == "nvidia" else "auto"
+
+    if effective_thinking == "disabled":
+        payload["extra_body"] = {"thinking": {"type": "disabled"}}
+    elif effective_thinking == "enabled":
+        payload["extra_body"] = {"thinking": {"type": "enabled"}}
+
+    if provider == "openai":
+        payload.pop("extra_body", None)  # OpenAI doesn't support thinking control (ignore if present)
 
     resp = await client.chat_completions(payload)
 
