@@ -17,9 +17,7 @@ data/authentication/*
 # models/*
 
 #  data (real)
-data/raw/
-data/db/
-data/processed/
+data/processed/**
 data/artifacts/*
 # common data formats
 *.db
@@ -38,3 +36,6 @@ models/qwen2.5-0.5b-jd-lora/
 !data/artifacts/demo/
 
 !data/artifacts/demo/**
+!data/raw/**
+!data/processed/**
+!data/db/**
