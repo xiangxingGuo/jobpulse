@@ -4,6 +4,7 @@ from typing import Optional, Sequence
 
 import torch
 from transformers import AutoTokenizer, AutoModelForCausalLM
+from src.llm.json_repair import parse_json_object
 
 from .base import BaseExtractor
 

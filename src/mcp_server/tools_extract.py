@@ -29,7 +29,7 @@ def extract_local(
     jd_text: str,
     prompt_name: str = "jd_extract_v2",
     # model: str = "Qwen/Qwen2.5-0.5B-Instruct",
-    model: Literal["Qwen/Qwen2.5-0.5B-Instruct", "Qwen/Qwen2-3B-Instruct"] = "Qwen/Qwen2.5-0.5B-Instruct",
+    model: Literal["Qwen/Qwen2.5-0.5B-Instruct", "Qwen/Qwen2.5-3B-Instruct"] = "Qwen/Qwen2.5-0.5B-Instruct",
     lora_path: Optional[str] = "models/qwen2.5-0.5b-jd-lora",
     mode: Literal["plain", "chat_lora"] = "plain",
     device: Literal["cuda", "cpu"] = "cuda",

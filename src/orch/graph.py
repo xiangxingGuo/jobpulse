@@ -8,6 +8,10 @@ from langgraph.graph import StateGraph, END
 
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
+import json
+from pathlib import Path
+
+# Path("data/artifacts/_debug").mkdir(parents=True, exist_ok=True)
 
 
 class GraphState(TypedDict, total=False):
@@ -145,7 +149,6 @@ async def node_fetch_jd(state: GraphState) -> GraphState:
 
 async def node_extract_local(state: GraphState) -> GraphState:
     _trace(state, "extract_local", "start")
-    # session = await _ensure_session(state)
     args: Dict[str, Any] = {
         "job_id": state["job_id"],
         "jd_text": state["jd_text"],
@@ -154,12 +157,57 @@ async def node_extract_local(state: GraphState) -> GraphState:
         "lora_path": state.get("local_lora_path"),
         "mode": state.get("local_mode", "chat_lora"),
     }
-    res = await _call_tool_once("extract_local", args)
-    payload = _tool_result_json(res, "extract_local")
-    state["structured"] = payload.get("structured")
-    state["extract_meta"] = {k: payload.get(k) for k in ["parse_ok", "parse_repaired", "extractor"]}
-    _trace(state, "extract_local", "ok", parse_ok=payload.get("parse_ok"))
-    return state
+
+    try:
+        res = await _call_tool_once("extract_local", args)
+
+        # Path(f"data/artifacts/_debug/extract_local_res_{state['job_id']}.txt").write_text(repr(res), encoding="utf-8")
+
+
+        # If tool itself errored, treat as local failure (do not crash graph)
+        if getattr(res, "is_error", False):
+            err = _tool_result_text(res).strip() or "unknown tool error"
+            state["structured"] = None
+            state["extract_meta"] = {
+                "parse_ok": False,
+                "parse_repaired": False,
+                "extractor": {"mode": args["mode"], "model": args["model"], "lora_path": args.get("lora_path")},
+                "error": f"tool_error: {err}",
+            }
+            _trace(state, "extract_local", "fail", error=err)
+            return state
+
+        txt = _tool_result_text(res).strip()
+        if not txt:
+            state["structured"] = None
+            state["extract_meta"] = {
+                "parse_ok": False,
+                "parse_repaired": False,
+                "extractor": {"mode": args["mode"], "model": args["model"], "lora_path": args.get("lora_path")},
+                "error": "empty_tool_content",
+            }
+            _trace(state, "extract_local", "fail", error="empty_tool_content")
+            return state
+
+        import json
+        payload = json.loads(txt)
+
+        state["structured"] = payload.get("structured")
+        state["extract_meta"] = {k: payload.get(k) for k in ["parse_ok", "parse_repaired", "extractor", "usage"]}
+        _trace(state, "extract_local", "ok", parse_ok=payload.get("parse_ok"))
+        return state
+
+    except Exception as e:
+        # JSON decode errors and any unexpected errors land here
+        state["structured"] = None
+        state["extract_meta"] = {
+            "parse_ok": False,
+            "parse_repaired": False,
+            "extractor": {"mode": args["mode"], "model": args["model"], "lora_path": args.get("lora_path")},
+            "error": str(e),
+        }
+        _trace(state, "extract_local", "fail", error=str(e))
+        return state
 
 
 async def node_extract_api(state: GraphState) -> GraphState:
@@ -249,24 +297,21 @@ async def node_finalize(state: GraphState) -> GraphState:
 # -----------------------
 
 def route_after_fetch(state: GraphState) -> str:
-    # if local_first enabled, try local; else go API
-    if state.get("local_first", False):
-        return "extract_local"
-    return "extract_api"
+    return "extract_local" if state.get("local_first") is True else "extract_api"
+
 
 
 def route_after_qc(state: GraphState) -> str:
     qc = state.get("qc", {})
     if qc.get("status") == "pass":
         return "report"
-    # QC failed: if already used API, stop; else fallback to API
+
     extractor = (state.get("extract_meta") or {}).get("extractor") or {}
-    used_provider = extractor.get("provider")  # set by extract_api tool
-    used_mode = extractor.get("mode")          # set by extract_local tool
-    if used_provider == "openai" or used_provider == "nvidia":
-        return "finalize"  # already on API and failed
-    # otherwise: local failed -> fallback to API
+    # If we already used API, stop; otherwise fallback to API
+    if extractor.get("provider") in ("openai", "nvidia"):
+        return "finalize"
     return "extract_api"
+
 
 
 def build_graph() -> Any:

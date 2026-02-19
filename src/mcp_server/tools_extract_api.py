@@ -11,6 +11,8 @@ import httpx
 from src.orch.schema import ExtractAPIOutput, JobStructured
 from src.llm.providers.openai_compat_client import OpenAICompatClient
 from src.llm.providers.openai_compat_providers import PROVIDERS
+from src.llm.json_repair import parse_json_object
+
 
 PROMPTS = {
     "jd_extract_v1": Path("src/llm/prompts/jd_extract_v1.txt"),
@@ -69,143 +71,6 @@ def _build_prompt(prompt_name: str, jd_text: str) -> str:
     prompt = template.replace("{{JOB_DESCRIPTION}}", jd_text)
     assert "{{JOB_DESCRIPTION}}" not in prompt, "Placeholder not replaced"
     return prompt
-
-
-def _strip_code_fences(text: str) -> str:
-    t = text.strip()
-    if t.startswith("```"):
-        lines = t.splitlines()
-        # drop first fence line
-        lines = lines[1:] if lines else lines
-        # drop last fence line if present
-        if lines and lines[-1].strip() == "```":
-            lines = lines[:-1]
-        t = "\n".join(lines).strip()
-    return t
-
-
-def _extract_jsonish_tail(text: str) -> str:
-    t = text
-    i_obj = t.find("{")
-    i_arr = t.find("[")
-    if i_obj == -1 and i_arr == -1:
-        return t.strip()
-    if i_obj == -1:
-        start = i_arr
-    elif i_arr == -1:
-        start = i_obj
-    else:
-        start = min(i_obj, i_arr)
-    return t[start:].strip()
-
-
-def _truncate_to_last_balanced(text: str) -> Optional[str]:
-    """
-    If output contains JSON followed by extra text, try to truncate
-    at the last point where brackets are balanced (outside strings).
-    """
-    t = text
-    stack: List[str] = []
-    in_str = False
-    esc = False
-    started = False
-    last_balanced_end: Optional[int] = None
-
-    for i, ch in enumerate(t):
-        if in_str:
-            if esc:
-                esc = False
-            elif ch == "\\":
-                esc = True
-            elif ch == '"':
-                in_str = False
-            continue
-
-        if ch == '"':
-            in_str = True
-            continue
-
-        if ch in "{[":
-            stack.append(ch)
-            started = True
-        elif ch in "}]":
-            if stack:
-                top = stack[-1]
-                if (top == "{" and ch == "}") or (top == "[" and ch == "]"):
-                    stack.pop()
-
-        if started and not in_str and not stack:
-            last_balanced_end = i + 1
-
-    if last_balanced_end is not None:
-        return t[:last_balanced_end].strip()
-    return None
-
-
-def _repair_brackets(text: str, max_append: int = 256) -> str:
-    """
-    Best-effort: strip fences, keep json-ish tail, then balance {} and [].
-    """
-    t = _strip_code_fences(text)
-    t = _extract_jsonish_tail(t)
-
-    # First: if we can truncate to a balanced JSON, do it (fixes Extra data)
-    truncated = _truncate_to_last_balanced(t)
-    if truncated:
-        return truncated
-
-    # Otherwise: append missing closers (fixes missing } / ])
-    stack: List[str] = []
-    in_str = False
-    esc = False
-
-    for ch in t:
-        if in_str:
-            if esc:
-                esc = False
-            elif ch == "\\":
-                esc = True
-            elif ch == '"':
-                in_str = False
-            continue
-
-        if ch == '"':
-            in_str = True
-            continue
-
-        if ch in "{[":
-            stack.append(ch)
-        elif ch in "}]":
-            if stack:
-                top = stack[-1]
-                if (top == "{" and ch == "}") or (top == "[" and ch == "]"):
-                    stack.pop()
-
-    closes = []
-    for opener in reversed(stack):
-        closes.append("}" if opener == "{" else "]")
-    if closes:
-        t = t + "".join(closes)[:max_append]
-    return t.strip()
-
-
-def _parse_json(text: str) -> Tuple[Optional[Dict[str, Any]], bool]:
-    """
-    Returns (obj, repaired_flag)
-    """
-    try:
-        obj = json.loads(text)
-        return (obj if isinstance(obj, dict) else None, False)
-    except Exception:
-        pass
-
-    repaired = _repair_brackets(text)
-    try:
-        obj = json.loads(repaired)
-        return (obj if isinstance(obj, dict) else None, True)
-    except Exception:
-        return (None, True)
-
 
 async def extract_api(
     job_id: str,
@@ -273,7 +138,7 @@ async def extract_api(
     if not content.strip():
         content = json.dumps(resp, ensure_ascii=False)
 
-    parsed, repaired_flag = _parse_json(content)
+    parsed, repaired_flag, used_text = parse_json_object(content)
     parse_ok = parsed is not None
 
     structured: Optional[JobStructured] = None
@@ -285,6 +150,7 @@ async def extract_api(
         "structured": structured,
         "raw_output": content,
         "parse_ok": parse_ok,
+        "used_text": used_text,
         "parse_repaired": repaired_flag,
         "usage": usage,
         "extractor": {"provider": provider, "model": model, "base_url": client.base_url},

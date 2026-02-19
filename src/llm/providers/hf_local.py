@@ -4,6 +4,7 @@ from transformers import AutoTokenizer, AutoModelForCausalLM
 import torch
 
 from peft import PeftModel
+from src.llm.json_repair import parse_json_object
 
 
 
@@ -85,35 +86,3 @@ class HFLocalExtractor:
             return slow_fallback_extract_last_json(text)
 
 
-def slow_fallback_extract_last_json(text: str) -> dict:
-    """
-    Slow but robust fallback:
-    extract the LAST valid top-level JSON object from text.
-    """
-    depth = 0
-    start = None
-    candidates = []
-
-    for i, ch in enumerate(text):
-        if ch == "{":
-            if depth == 0:
-                start = i
-            depth += 1
-        elif ch == "}":
-            if depth > 0:
-                depth -= 1
-                if depth == 0 and start is not None:
-                    candidates.append(text[start:i+1])
-                    start = None
-
-    if not candidates:
-        raise ValueError("No JSON object found in model output")
-
-    # Try from last to first
-    for s in reversed(candidates):
-        try:
-            return json.loads(s)
-        except json.JSONDecodeError:
-            continue
-
-    raise ValueError("Found JSON-like blocks, but none are valid JSON")

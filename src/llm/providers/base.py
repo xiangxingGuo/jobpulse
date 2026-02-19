@@ -4,6 +4,8 @@ import json
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Sequence
+from src.llm.json_repair import parse_json_object
+
 
 def _strip_code_fences(text: str) -> str:
     t = text.strip()
@@ -151,7 +153,7 @@ class BaseExtractor(ABC):
         """
         raw = ""
         try:
-            raw = self._generate(prompt).strip()
+            raw = (self._generate(prompt) or "").strip() # avoid None            
             data = self.parse_json(raw)
             self.validate_schema(data)
             return ExtractionResult(data=data, raw_output=raw, error=None)
@@ -163,10 +165,13 @@ class BaseExtractor(ABC):
     def parse_json(self, text: str) -> Dict[str, Any]:
         """
         Parse JSON dict from model output.
-        Fast path: json.loads(text)
-        Fallback: extract last valid JSON object from text.
+
+        Strategy:
+        1) Try parse as-is (fast)
+        2) Try shared repair/truncate logic (handles code fences, extra text, missing brackets)
+        3) Last resort: extract last {...} block and parse
         """
-        # Fast path
+        # 1) Fast path
         try:
             obj = json.loads(text)
             if not isinstance(obj, dict):
@@ -175,22 +180,17 @@ class BaseExtractor(ABC):
         except Exception:
             pass
 
-        # Repair path
-        repaired = repair_json_text(text)
-        try:
-            obj = json.loads(repaired)
-            if not isinstance(obj, dict):
-                raise ValueError(f"Repaired JSON is not an object/dict: {type(obj)}")
+        # 2) Shared repair/truncate path (recommended)
+        obj, _repaired, _used_text = parse_json_object(text)
+        if isinstance(obj, dict):
             return obj
-        except Exception:
-            pass
 
-        # Last resort: fall back
-        obj = self._extract_last_json_object(text)
-        if not isinstance(obj, dict):
-            raise ValueError(f"Extracted JSON is not an object/dict: {type(obj)}")
-        return obj
-
+        # 3) Last resort: brace-matching fallback (your existing robust method)
+        obj2 = self._extract_last_json_object(text)
+        if not isinstance(obj2, dict):
+            raise ValueError(f"Extracted JSON is not an object/dict: {type(obj2)}")
+        return obj2
+    
     def _extract_last_json_object(self, text: str) -> Any:
         """
         Slow but robust fallback: find all top-level {...} blocks by brace matching,

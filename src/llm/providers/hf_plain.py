@@ -6,6 +6,7 @@ import torch
 from transformers import AutoTokenizer, AutoModelForCausalLM
 
 from .base import BaseExtractor
+from src.llm.json_repair import parse_json_object
 
 
 class HFPlainExtractor(BaseExtractor):
