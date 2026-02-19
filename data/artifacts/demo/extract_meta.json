@@ -1,0 +1,10 @@
+{
+  "parse_ok": true,
+  "parse_repaired": false,
+  "extractor": {
+    "mode": "plain",
+    "model": "Qwen/Qwen2.5-3B-Instruct",
+    "lora_path": null
+  },
+  "usage": null
+}

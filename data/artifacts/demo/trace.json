@@ -1,0 +1,53 @@
+[
+  {
+    "t": "2026-02-18 22:03:19",
+    "step": "fetch_jd",
+    "status": "start"
+  },
+  {
+    "t": "2026-02-18 22:03:26",
+    "step": "fetch_jd",
+    "status": "ok",
+    "jd_len": 5204
+  },
+  {
+    "t": "2026-02-18 22:03:26",
+    "step": "extract_local",
+    "status": "start"
+  },
+  {
+    "t": "2026-02-18 22:05:55",
+    "step": "extract_local",
+    "status": "ok",
+    "parse_ok": true
+  },
+  {
+    "t": "2026-02-18 22:06:02",
+    "step": "qc_validate",
+    "status": "start"
+  },
+  {
+    "t": "2026-02-18 22:06:10",
+    "step": "qc_validate",
+    "status": "ok",
+    "qc": "pass",
+    "issues": []
+  },
+  {
+    "t": "2026-02-18 22:06:10",
+    "step": "generate_report_api",
+    "status": "start",
+    "provider": "openai"
+  },
+  {
+    "t": "2026-02-18 22:06:26",
+    "step": "generate_report_api",
+    "status": "ok",
+    "tokens": 845
+  },
+  {
+    "t": "2026-02-18 22:06:26",
+    "step": "finalize",
+    "status": "ok"
+  }
+]

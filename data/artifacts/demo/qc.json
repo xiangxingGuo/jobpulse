@@ -1,0 +1,18 @@
+{
+  "job_id": "10704289",
+  "status": "pass",
+  "issues": [],
+  "missing_or_empty": [],
+  "coverage": {
+    "role_title": 1.0,
+    "company": 1.0,
+    "requirements": 1.0,
+    "responsibilities": 1.0
+  },
+  "parse_repaired": false,
+  "extractor": {
+    "mode": "plain",
+    "model": "Qwen/Qwen2.5-3B-Instruct",
+    "lora_path": null
+  }
+}
