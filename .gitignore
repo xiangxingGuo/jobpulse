@@ -15,3 +15,26 @@ data/auth_state.json
 # data/processed/*
 data/authentication/*
 # models/*
+
+#  data (real)
+data/raw/
+data/db/
+data/processed/
+data/artifacts/*
+# common data formats
+*.db
+*.sqlite
+*.parquet
+*.jsonl
+*.csv
+
+# models / checkpoints
+models/qwen2.5-0.5b-jd-lora/
+*.safetensors
+*.bin
+*.pt
+
+
+!data/artifacts/demo/
+
+!data/artifacts/demo/**
