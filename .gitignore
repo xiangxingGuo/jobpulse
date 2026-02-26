@@ -38,4 +38,8 @@ models/qwen2.5-0.5b-jd-lora/
 !data/artifacts/demo/**
 !data/raw/**
 !data/processed/**
-!data/db/**
+!data/db/
+data/db/jobs.db
+data/raw/jd_raw/
+data/raw/jd_txt/
+.vscode/
