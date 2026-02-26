@@ -1,33 +1,39 @@
 from __future__ import annotations
+
 import re
-from typing import List
-from playwright.sync_api import Page
+from typing import List, Dict
+from playwright.async_api import Page
 
 BASE = "https://app.joinhandshake.com"
 
-def collect_job_links(page: Page, pages: int = 1, per_page: int = 25) -> List[str]:
-    out: List[str] = []
+_JOB_RE = re.compile(r"^/jobs/(\d+)\b")
+
+async def collect_job_links(page: Page, pages: int = 1, per_page: int = 25, timeout_ms: int = 15000) -> List[Dict[str, str]]:
+    out: List[Dict[str, str]] = []
     seen = set()
 
     for p in range(1, pages + 1):
         url = f"{BASE}/job-search?page={p}&per_page={per_page}"
-        page.goto(url, wait_until="domcontentloaded")
+        await page.goto(url, wait_until="domcontentloaded")
         try:
-            page.wait_for_load_state("networkidle", timeout=15000)
+            await page.wait_for_load_state("networkidle", timeout=timeout_ms)
         except Exception:
+            # Best-effort, avoid hard failure on flaky network
             pass
-        page.wait_for_timeout(1200)
 
+        # anchor hrefs
         loc = page.locator('a[href^="/jobs/"]')
-        n = loc.count()
+        n = await loc.count()
         for i in range(n):
-            href = loc.nth(i).get_attribute("href") or ""
-            m = re.match(r"^/jobs/(\d+)", href)
+            href = (await loc.nth(i).get_attribute("href")) or ""
+            m = _JOB_RE.match(href)
             if not m:
                 continue
-            clean = f"{BASE}/jobs/{m.group(1)}"
-            if clean not in seen:
-                seen.add(clean)
-                out.append(clean)
+            job_id = m.group(1)
+            clean = f"{BASE}/jobs/{job_id}"
+            if clean in seen:
+                continue
+            seen.add(clean)
+            out.append({"job_id": job_id, "url": clean})
 
     return out

@@ -127,7 +127,7 @@ uv sync
 ## 2️⃣ Install Playwright Browsers (Required)
 
 ```
-python -m playwright install --with-deps
+uv run python -m playwright install --with-deps
 ```
 
 ⚠️ Without this step, scraping will fail.
@@ -144,7 +144,12 @@ export NVIDIA_API_KEY="your_key"
 # 🚀 Usage
 
 ## 1️⃣ Scrape Job Postings
+For the first time, 
+```
+uv run python scripts/login.py
+```
 
+Then
 ```
 uv run python scripts/run_pipeline.py --pages 1 --limit 10
 ```
@@ -154,6 +159,7 @@ Stored in:
 ```
 data/db/jobs.db
 ```
+
 
 ------
 
