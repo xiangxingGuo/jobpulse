@@ -10,7 +10,7 @@ wheels/
 .venv
 __pycache__/
 data/auth_state.json
-~data/db/
+# ~data/db/
 # data/raw/*
 # data/processed/*
 data/authentication/*
@@ -18,9 +18,9 @@ data/authentication/*
 
 #  data (real)
 data/processed/**
-data/artifacts/*
+# data/artifacts/*
 # common data formats
-*.db
+# *.db
 *.sqlite
 *.parquet
 *.jsonl
@@ -38,8 +38,8 @@ models/qwen2.5-0.5b-jd-lora/
 !data/artifacts/demo/**
 !data/raw/**
 !data/processed/**
-!data/db/
-data/db/jobs.db
+# !data/db/
+# data/db/jobs.db # sync for working in different pcs, will delete later
 data/raw/jd_raw/
 data/raw/jd_txt/
 .vscode/

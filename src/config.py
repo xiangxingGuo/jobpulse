@@ -33,9 +33,9 @@ class ScrapeConfig:
     headless: bool = _env_bool("HEADLESS", False)
 
     # Scope
-    pages: int = _env_int("PAGES", 1)
+    pages: int = _env_int("PAGES", 10)
     per_page: int = _env_int("PER_PAGE", 25)
-    limit: int = _env_int("LIMIT", 80)
+    limit: int = _env_int("LIMIT", 100)
 
     # Playwright timeouts (ms)
     goto_timeout_ms: int = _env_int("GOTO_TIMEOUT_MS", 20000)
