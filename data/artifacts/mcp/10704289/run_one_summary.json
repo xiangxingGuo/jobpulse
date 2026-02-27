@@ -1,0 +1,25 @@
+{
+  "elapsed_s": 16.35,
+  "route": "local_then_api",
+  "fallback_reason": "local_error",
+  "steps_ms": {
+    "fetch_jd": 16,
+    "extract_api": 7473,
+    "qc_api": 7,
+    "generate_report_api": 5090
+  },
+  "local": {
+    "attempted": true,
+    "parse_ok": false,
+    "qc": "error"
+  },
+  "api": {
+    "attempted": true,
+    "parse_ok": true,
+    "qc": "pass"
+  },
+  "final_qc": "pass",
+  "slo": {
+    "final_qc_pass": true
+  }
+}

@@ -1,5 +1,5 @@
 {
-  "run_id": "50eed95dea",
+  "run_id": "252b0c5be9",
   "headless": false,
   "pages": 10,
   "per_page": 25,
@@ -27,7 +27,7 @@
     "jobs in your collections",
     "company ratings"
   ],
-  "artifact_dir": "data/artifacts",
+  "artifact_dir": "data/artifacts/scrape",
   "save_bad_samples": true,
   "bad_sample_max": 25,
   "log_json": true,
