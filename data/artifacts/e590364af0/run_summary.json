@@ -1,0 +1,109 @@
+{
+  "counts": {
+    "links_collected_total": 7,
+    "links_new": 7,
+    "jobs_parsed_ok": 7,
+    "jobs_upserted": 7,
+    "skills_jobs_written": 7,
+    "skills_total_written": 29
+  },
+  "fail_reasons": {},
+  "gate_reasons": {},
+  "stage_timings_sec": {
+    "collect_links": {
+      "count": 1,
+      "min": 6.219545018000645,
+      "p50": 6.219545018000645,
+      "p95": 6.219545018000645,
+      "max": 6.219545018000645,
+      "mean": 6.219545018000645
+    },
+    "parse_detail": {
+      "count": 7,
+      "min": 11.416564696999558,
+      "p50": 11.718603283999983,
+      "p95": 12.698438255998553,
+      "max": 12.698438255998553,
+      "mean": 11.961189151142596
+    },
+    "db_upsert_job": {
+      "count": 7,
+      "min": 0.003846569001325406,
+      "p50": 0.004440773000169429,
+      "p95": 0.004672629000197048,
+      "max": 0.004672629000197048,
+      "mean": 0.004297459428926231
+    },
+    "extract_skills": {
+      "count": 7,
+      "min": 0.004294211999877007,
+      "p50": 0.004544617000647122,
+      "p95": 0.005281028999888804,
+      "max": 0.005281028999888804,
+      "mean": 0.004664493857490015
+    },
+    "db_replace_skills": {
+      "count": 7,
+      "min": 0.004024077999929432,
+      "p50": 0.004581724999297876,
+      "p95": 0.0047297210003307555,
+      "max": 0.0047297210003307555,
+      "mean": 0.004489595000060425
+    }
+  },
+  "per_job_total_sec": {
+    "count": 7,
+    "min": 13.419212280001375,
+    "p50": 14.946766641998693,
+    "p95": 24.525372564999998,
+    "max": 24.525372564999998,
+    "mean": 16.693004280285614
+  },
+  "data_quality": {
+    "desc_len": {
+      "count": 7,
+      "min": 4534,
+      "p50": 7779,
+      "p95": 9663,
+      "max": 9663,
+      "mean": 7720.571428571428
+    },
+    "skills_per_job": {
+      "count": 7,
+      "min": 2,
+      "p50": 4,
+      "p95": 6,
+      "max": 6,
+      "mean": 4.142857142857143
+    },
+    "company_nonnull_rate": 1.0,
+    "location_nonnull_rate": 1.0
+  },
+  "run_id": "e590364af0",
+  "finished_utc": "2026-02-26T22:43:31.292312+00:00",
+  "elapsed_sec": 124.19263380399934,
+  "artifacts_dir": "data/artifacts/e590364af0",
+  "config": {
+    "pages": 1,
+    "per_page": 25,
+    "limit": 80,
+    "headless": false,
+    "max_retries": 2
+  },
+  "slo": {
+    "success_rate": 1.0,
+    "target_success_rate": 0.95,
+    "met": true
+  },
+  "dq_slo": {
+    "desc_len_p50_min": 600,
+    "company_nonnull_rate_min": 0.85,
+    "skills_per_job_p50_min": 2.0,
+    "observed": {
+      "desc_len_p50": 7779,
+      "company_nonnull_rate": 1.0,
+      "skills_per_job_p50": 4
+    },
+    "met": true
+  }
+}

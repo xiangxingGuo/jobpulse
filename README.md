@@ -255,6 +255,30 @@ Available tools:
 
 # 📈 Reliability Strategy
 
+---
+
+## 📊 Scraper Reliability & Metrics
+
+The scraping subsystem is instrumented with:
+
+- Stage-level latency histograms
+- Idempotent content hashing
+- Run-level audit logs
+- Data Quality SLO enforcement
+
+Example Production Run (run_id: 50eed95dea):
+
+- 62 jobs processed
+- 100% ingestion success
+- parse_detail P50 ≈ 12s
+- desc_len_p50 ≈ 6868 chars
+- skills_per_job_p50 = 1 (DQ-SLO failed)
+
+This demonstrates:
+- Separation of availability vs. data quality SLOs
+- Drift detection via metric thresholds
+- Artifact-based observability
+
 ## Extraction Flow
 
 ```
