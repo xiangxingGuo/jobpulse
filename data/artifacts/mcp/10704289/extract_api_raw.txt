@@ -16,7 +16,7 @@
   ],
   "requirements": [
     "Currently pursuing a degree in related field",
-    "Cumulative 3.0/4.0 GPA or higher"
+    "Cumulative GPA of 3.0/4.0 or higher"
   ],
   "preferred_qualifications": [
     "Coursework in Python, Java, or SQL",

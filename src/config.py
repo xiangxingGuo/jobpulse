@@ -63,7 +63,7 @@ class ScrapeConfig:
     ])
 
     # Evidence / sampling (for debugging & interview artifacts)
-    artifact_dir: Path = Path(os.getenv("ARTIFACT_DIR", "data/artifacts"))
+    artifact_dir: Path = Path(os.getenv("ARTIFACT_DIR", "data/artifacts/scrape"))
     save_bad_samples: bool = _env_bool("SAVE_BAD_SAMPLES", True)
     bad_sample_max: int = _env_int("BAD_SAMPLE_MAX", 25)  # cap per run
 
