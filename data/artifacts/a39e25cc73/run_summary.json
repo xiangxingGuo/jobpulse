@@ -1,0 +1,61 @@
+{
+  "counts": {
+    "links_collected_total": 21,
+    "links_new": 21,
+    "jobs_parsed_ok": 21,
+    "jobs_upserted": 21,
+    "skills_skipped_hash_unchanged": 21
+  },
+  "fail_reasons": {},
+  "gate_reasons": {},
+  "stage_timings_sec": {
+    "collect_links": {
+      "count": 1,
+      "min": 17.489448831000118,
+      "p50": 17.489448831000118,
+      "p95": 17.489448831000118,
+      "max": 17.489448831000118,
+      "mean": 17.489448831000118
+    },
+    "parse_detail": {
+      "count": 21,
+      "min": 11.548980621999362,
+      "p50": 12.308949591000783,
+      "p95": 13.612311441000202,
+      "max": 21.175462918999983,
+      "mean": 12.692590623380836
+    },
+    "db_upsert_job": {
+      "count": 21,
+      "min": 0.003661267000097723,
+      "p50": 0.004544417999568395,
+      "p95": 0.006508465000479191,
+      "max": 0.006923815000845934,
+      "mean": 0.004757564143065316
+    }
+  },
+  "per_job_total_sec": {
+    "count": 21,
+    "min": 13.509571262000463,
+    "p50": 15.400016331999723,
+    "p95": 26.40538203000051,
+    "max": 27.051495830999556,
+    "mean": 17.963212841666625
+  },
+  "run_id": "a39e25cc73",
+  "finished_utc": "2026-02-26T22:00:57.365396+00:00",
+  "elapsed_sec": 395.82420632699905,
+  "artifacts_dir": "data/artifacts/a39e25cc73",
+  "config": {
+    "pages": 3,
+    "per_page": 25,
+    "limit": 80,
+    "headless": false,
+    "max_retries": 2
+  },
+  "slo": {
+    "success_rate": 1.0,
+    "target_success_rate": 0.95,
+    "met": true
+  }
+}
