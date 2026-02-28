@@ -47,6 +47,12 @@ class GraphState(TypedDict, total=False):
     # trace
     trace: list[dict]
 
+    # runtime metrics
+    metrics: Dict[str, Any]
+    decisions: list[dict]
+    run_id: str
+    ts_start_utc: str
+
 
 def _now() -> str:
     return time.strftime("%Y-%m-%d %H:%M:%S")
@@ -54,7 +60,9 @@ def _now() -> str:
 
 def _trace(state: GraphState, step: str, status: str, **meta: Any) -> None:
     state.setdefault("trace", [])
-    state["trace"].append({"t": _now(), "step": step, "status": status, **meta})
+    state.setdefault("metrics", {}).setdefault("node_ms", {})
+    entry = {"t": _now(), "step": step, "status": status, **meta}
+    state["trace"].append(entry)
 
 
 def _tool_result_text(res: Any) -> str:
@@ -138,16 +146,21 @@ async def _close_session(state: GraphState) -> None:
 # -----------------------
 
 async def node_fetch_jd(state: GraphState) -> GraphState:
+    t0 = time.time()
     _trace(state, "fetch_jd", "start")
     # session = await _ensure_session(state)
     res = await _call_tool_once("fetch_jd", {"job_id": state["job_id"], "source": state.get("source", "handshake")})
     payload = _tool_result_json(res, "fetch_jd")
     state["jd_text"] = payload["jd_text"]
-    _trace(state, "fetch_jd", "ok", jd_len=len(state["jd_text"]))
+    
+    dt = int((time.time() - t0) * 1000)
+    state["metrics"]["node_ms"]["fetch_jd"] = dt
+    _trace(state, "fetch_jd", "ok", jd_len=len(state["jd_text"]), elapsed_ms=dt)
     return state
 
 
 async def node_extract_local(state: GraphState) -> GraphState:
+    t0 = time.time()
     _trace(state, "extract_local", "start")
     args: Dict[str, Any] = {
         "job_id": state["job_id"],
@@ -194,7 +207,9 @@ async def node_extract_local(state: GraphState) -> GraphState:
 
         state["structured"] = payload.get("structured")
         state["extract_meta"] = {k: payload.get(k) for k in ["parse_ok", "parse_repaired", "extractor", "usage"]}
-        _trace(state, "extract_local", "ok", parse_ok=payload.get("parse_ok"))
+        dt = int((time.time() - t0) * 1000)
+        state["metrics"]["node_ms"]["extract_local"] = dt
+        _trace(state, "extract_local", "ok", parse_ok=payload.get("parse_ok"), elapsed_ms=dt)
         return state
 
     except Exception as e:
@@ -206,11 +221,14 @@ async def node_extract_local(state: GraphState) -> GraphState:
             "extractor": {"mode": args["mode"], "model": args["model"], "lora_path": args.get("lora_path")},
             "error": str(e),
         }
-        _trace(state, "extract_local", "fail", error=str(e))
+        dt = int((time.time() - t0) * 1000)
+        state["metrics"]["node_ms"]["extract_local"] = dt
+        _trace(state, "extract_local", "fail", error=str(e), elapsed_ms=dt)
         return state
 
 
 async def node_extract_api(state: GraphState) -> GraphState:
+    t0 = time.time()
     _trace(state, "extract_api", "start", provider=state.get("extract_provider"))
     # session = await _ensure_session(state)
 
@@ -234,11 +252,14 @@ async def node_extract_api(state: GraphState) -> GraphState:
 
     state["structured"] = payload.get("structured")
     state["extract_meta"] = {k: payload.get(k) for k in ["parse_ok", "parse_repaired", "usage", "extractor"]}
-    _trace(state, "extract_api", "ok", parse_ok=payload.get("parse_ok"))
+    dt = int((time.time() - t0) * 1000)
+    state["metrics"]["node_ms"]["extract_api"] = dt
+    _trace(state, "extract_api", "ok", parse_ok=payload.get("parse_ok"), elapsed_ms=dt)
     return state
 
 
 async def node_qc(state: GraphState) -> GraphState:
+    t0 = time.time()
     _trace(state, "qc_validate", "start")
     # session = await _ensure_session(state)
     args = {
@@ -253,11 +274,14 @@ async def node_qc(state: GraphState) -> GraphState:
     res = await _call_tool_once("qc_validate", args)
     payload = _tool_result_json(res, "qc_validate")
     state["qc"] = payload
-    _trace(state, "qc_validate", "ok", qc=payload.get("status"), issues=payload.get("issues"))
+    dt = int((time.time() - t0) * 1000)
+    state["metrics"]["node_ms"]["qc_validate"] = dt
+    _trace(state, "qc_validate", "ok", qc=payload.get("status"), issues=payload.get("issues"), elapsed_ms=dt)
     return state
 
 
 async def node_report(state: GraphState) -> GraphState:
+    t0 = time.time()
     _trace(state, "generate_report_api", "start", provider=state.get("report_provider"))
     # session = await _ensure_session(state)
 
@@ -283,7 +307,9 @@ async def node_report(state: GraphState) -> GraphState:
 
     state["report_md"] = payload.get("report_md")
     state["report_meta"] = {k: payload.get(k) for k in ["usage", "meta"]}
-    _trace(state, "generate_report_api", "ok", tokens=state["report_meta"].get("usage", {}).get("total_tokens"))
+    dt = int((time.time() - t0) * 1000)
+    state["metrics"]["node_ms"]["generate_report_api"] = dt
+    _trace(state, "generate_report_api", "ok", tokens=state["report_meta"].get("usage", {}).get("total_tokens"), elapsed_ms=dt)
     return state
 
 
@@ -304,12 +330,28 @@ def route_after_fetch(state: GraphState) -> str:
 def route_after_qc(state: GraphState) -> str:
     qc = state.get("qc", {})
     if qc.get("status") == "pass":
+        state.setdefault("decisions", []).append({
+            "decision": "qc_pass",
+            "at": _now(),
+        })
         return "report"
 
     extractor = (state.get("extract_meta") or {}).get("extractor") or {}
-    # If we already used API, stop; otherwise fallback to API
+
     if extractor.get("provider") in ("openai", "nvidia"):
+        state.setdefault("decisions", []).append({
+            "decision": "qc_fail_after_api",
+            "at": _now(),
+            "issues": qc.get("issues"),
+        })
         return "finalize"
+
+    state.setdefault("decisions", []).append({
+        "decision": "fallback_to_api",
+        "at": _now(),
+        "reason": "qc_fail_local",
+        "issues": qc.get("issues"),
+    })
     return "extract_api"
 
 

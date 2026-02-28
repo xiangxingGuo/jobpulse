@@ -1,0 +1,31 @@
+{
+  "run_id": "ebbe0a0156",
+  "job_id": "10704289",
+  "route": "local_then_api",
+  "qc_status": "pass",
+  "elapsed_sec": 36.302,
+  "node_ms": {
+    "fetch_jd": 5608,
+    "extract_local": 3110,
+    "qc_validate": 4305,
+    "extract_api": 10690,
+    "generate_report_api": 8562
+  },
+  "decisions": [
+    {
+      "decision": "fallback_to_api",
+      "at": "2026-02-28 16:42:20",
+      "reason": "qc_fail_local",
+      "issues": [
+        "parse_failed"
+      ]
+    },
+    {
+      "decision": "qc_pass",
+      "at": "2026-02-28 16:42:35"
+    }
+  ],
+  "slo": {
+    "availability_pass": true
+  }
+}

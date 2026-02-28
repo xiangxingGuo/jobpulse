@@ -4,12 +4,14 @@ import argparse
 import asyncio
 import json
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, Optional
+import os
+import uuid, time
+from datetime import datetime, timezone
 
 from src.orch.graph import build_graph
 
-ARTIFACTS_DIR = Path("data/artifacts")
-
+ARTIFACTS_DIR = Path(os.getenv("ARTIFACT_DIR", "data/artifacts")) / "langgraph"
 
 def _write_text(path: Path, text: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -22,7 +24,9 @@ def _write_json(path: Path, obj: Any) -> None:
 
 
 async def main_async(args: argparse.Namespace) -> None:
+    t0 = time.time()
     app = build_graph()
+    run_id = uuid.uuid4().hex[:10]
 
     state: Dict[str, Any] = {
         "job_id": args.job_id,
@@ -38,12 +42,45 @@ async def main_async(args: argparse.Namespace) -> None:
         "report_model": args.report_model,
         "resume_text": None,
         "trace": [],
+        "run_id": run_id,
+        "metrics": {"node_ms": {}, "route": None},
+        "decisions": [],
+        "ts_start_utc": datetime.now(timezone.utc).isoformat(),
     }
 
     out = await app.ainvoke(state)
 
-    job_dir = Path(args.out_dir) / args.job_id
+    job_dir = Path(args.out_dir) / run_id / args.job_id
     job_dir.mkdir(parents=True, exist_ok=True)
+
+    elapsed = time.time() - t0
+    route = "unknown"
+    decisions = out.get("decisions", [])
+    if any(d.get("decision") == "fallback_to_api" for d in decisions):
+        route = "local_then_api"
+    elif out.get("extract_meta", {}).get("extractor", {}).get("provider") in ("openai", "nvidia"):
+        route = "api_only"
+    else:
+        route = "local_only"
+
+    summary = {
+        "run_id": run_id,
+        "job_id": args.job_id,
+        "route": route,
+        "qc_status": (out.get("qc") or {}).get("status"),
+        "elapsed_sec": round(elapsed, 3),
+        "node_ms": out.get("metrics", {}).get("node_ms", {}),
+        "decisions": decisions,
+        "slo": {
+            "availability_pass": (out.get("qc") or {}).get("status") == "pass"
+        }
+    }
+
+    # (job_dir / "run_summary.json").write_text(
+    #     json.dumps(summary, indent=2),
+    #     encoding="utf-8"
+    # )
+    _write_json(job_dir / "run_summary.json", summary)
 
     _write_text(job_dir / "jd.txt", out.get("jd_text", ""))
     _write_json(job_dir / "structured.json", out.get("structured"))
