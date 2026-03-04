@@ -8,19 +8,17 @@ wheels/
 
 # Virtual environments
 .venv
-__pycache__/
-data/auth_state.json
-# ~data/db/
-# data/raw/*
-# data/processed/*
-data/authentication/*
-# models/*
 
-#  data (real)
+# editor
+.vscode/
+
+# auth / secrets
+data/auth_state.json
+data/authentication/*
+
+# data (default: ignore)
 data/processed/**
-# data/artifacts/*
 # common data formats
-# *.db
 *.sqlite
 *.parquet
 *.jsonl
@@ -32,14 +30,17 @@ models/qwen2.5-0.5b-jd-lora/
 *.bin
 *.pt
 
+# ---- keep specific data folders but ignore their contents ----
+# ignore everything inside
+data/db/**
+data/raw/jd_raw/**
+data/raw/jd_txt/**
 
+# keep the folders via placeholder files
+!data/db/.gitkeep
+!data/raw/jd_raw/.gitkeep
+!data/raw/jd_txt/.gitkeep
+
+# artifacts demo should be tracked
 !data/artifacts/demo/
-
 !data/artifacts/demo/**
-!data/raw/**
-!data/processed/**
-# !data/db/
-# data/db/jobs.db # sync for working in different pcs, will delete later
-data/raw/jd_raw/
-data/raw/jd_txt/
-.vscode/
