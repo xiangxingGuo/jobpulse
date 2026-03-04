@@ -1,8 +1,19 @@
 # JobPulse
 
-> **Local-first LLM job intelligence pipeline with fallback orchestration, structured validation, and personalized skill-gap reporting.**
+> **Local-first LLM job intelligence pipeline with structured validation, deterministic fallback orchestration, and artifact-based observability.**
 
-JobPulse is an end-to-end LLM system that transforms raw job postings into structured intelligence and actionable reports. It combines scraping, structured extraction, validation, model fine-tuning, orchestration, and reliability engineering into a single reproducible workflow.
+JobPulse is an end-to-end LLM system that transforms raw job postings into structured intelligence and actionable reports.
+
+The project demonstrates how to design **production-style LLM pipelines**, including:
+
+- local-first model inference
+- deterministic fallback to API providers
+- structured schema validation
+- artifact-based observability
+- orchestration with LangGraph
+- MCP tool interface for modular execution
+
+The system is designed to mirror real industry LLM workflows where **reliability, traceability, and reproducibility** are as important as model accuracy.
 
 ------
 
@@ -21,149 +32,255 @@ JobPulse:
 
 ------
 
-# 🏗 Architecture Overview
+# 🏗 System Architecture
 
-```
-Scrape → Clean → Extract → Validate → Fallback (if needed) → Report → Persist Artifacts
-```
+```mermaid
+flowchart TD
 
-### Design Principles
+A[Job Scraping<br>Playwright] --> B[SQLite Storage]
 
-- **Local-first inference**
-- **Provider abstraction (OpenAI-compatible APIs)**
-- **Strict schema validation**
-- **Structured artifact logging**
-- **Traceable execution**
-- **Composable orchestration**
+B --> C[LLM Extraction Layer]
 
-------
+C -->|Local Model| D[Structured Output]
+C -->|Fallback API| D
 
-# ✨ Key Capabilities
+D --> E[Quality Validation<br>Schema + Rules]
 
-## 🔎 Job Data Pipeline
+E -->|Pass| F[Report Generation]
+E -->|Fail| G[Fallback Router]
 
-- Playwright-based scraping
-- Multi-platform connector abstraction
-- SQLite storage
-- Raw → Structured → Report artifact flow
+G --> C
 
-## 🤖 LLM Extraction
-
-- Local HuggingFace inference (PyTorch)
-- LoRA fine-tuned Qwen 0.5B
-- OpenAI-compatible API backends
-- Prompt versioning
-- Robust JSON repair + schema validation
-
-## 🔁 Reliability Engineering
-
-- Local-first extraction strategy
-- Automatic cloud fallback
-- QC validation gate before report generation
-- JSON repair heuristics:
-  - Code fence stripping
-  - Tail extraction
-  - Bracket repair
-  - Balanced truncation
-- Step-level trace logging
-
-## 🧠 Orchestration Layer
-
-- LangGraph state machine
-- Conditional routing
-- MCP tool server (stdio transport)
-- Short-lived MCP sessions for stability
-
-------
-
-# 📂 Project Structure
-
-```
-├── data/
-│   └── artifacts/          # Structured outputs + trace logs
-├── scripts/                # CLI entrypoints & experiments
-├── src/
-│   ├── connectors/         # Platform scraping adapters
-│   ├── extractors/         # Local extraction logic
-│   ├── llm/                # Prompt + provider abstraction
-│   ├── mcp_server/         # Tool-based MCP server
-│   ├── orch/               # LangGraph orchestration
-│   ├── schemas/            # Pydantic structured models
-│   ├── training/           # LoRA fine-tuning pipeline
-│   ├── report.py           # Markdown report generation
-│   └── db.py               # SQLite persistence
-└── models/                 # LoRA adapters (generated)
+F --> H[Artifact Storage<br>Trace + Metrics]
 ```
 
-Artifacts generated per job:
+## 🧠 Design Principles
+
+JobPulse follows several production-inspired LLM design patterns.
+
+### Local-first inference
+
+Local models are attempted first to reduce cost and latency.
 
 ```
-data/artifacts/<job_id>/
-  structured.json
-  qc.json
-  report.md
-  trace.json
+local model → qc gate → api fallback
 ```
 
-`trace.json` records:
+**Benefits**
 
-- Extraction path (local or API)
-- QC result
-- Fallback events
-- Report generation metadata
+- lower API costs  
+- faster experimentation  
+- offline capability  
 
-------
+---
+
+### Provider abstraction
+
+LLM providers are accessed through a unified interface.
+
+Supported providers:
+
+| Provider | Example Model |
+|--------|--------|
+| OpenAI | gpt-4o-mini |
+| NVIDIA NIM | kimi-k2 |
+| Local HF | Qwen + LoRA |
+
+---
+
+### Strict structured outputs
+
+Extraction must conform to a defined schema before downstream tasks execute.
+
+**Structured schema example**
+
+```
+role_title
+company
+location
+requirements
+responsibilities
+skills
+years_experience_min
+```
+
+---
+
+### Artifact-based observability
+
+Each pipeline run produces artifacts that enable debugging without rerunning the system.
+
+---
+
+# 📊 Artifacts & Observability
+
+Artifacts are separated by subsystem.
+
+```
+data/artifacts/
+  scrape/<run_id>/        # scraping pipeline runs
+  mcp/<job_id>/           # MCP tool chain runs
+  langgraph/<run_id>/     # LangGraph orchestration runs
+```
+
+Each run produces:
+
+```
+structured.json
+qc.json
+report.md
+trace.json
+run_summary.json
+config.json
+```
+
+Example:
+
+```
+data/artifacts/langgraph/64cca8f519/10704289/
+```
+
+---
+
+## Trace Logging
+
+`trace.json` records step-level execution events.
+
+Example execution path:
+
+```
+fetch_jd
+ → extract_local
+ → qc_validate
+ → fallback_to_api
+ → generate_report_api
+```
+
+Each trace event records:
+
+- timestamp  
+- step name  
+- execution status  
+- latency  
+- fallback reason  
+
+---
+
+## Run Summary
+
+`run_summary.json` aggregates run-level metrics.
+
+Example:
+
+```json
+{
+  "run_id": "64cca8f519",
+  "route": "local_then_api",
+  "qc_status": "pass",
+  "elapsed_sec": 12.3,
+  "node_ms": {
+    "fetch_jd": 210,
+    "extract_local": 1200,
+    "extract_api": 850,
+    "qc_validate": 35
+  }
+}
+```
+
+This design enables **post-mortem debugging and reliability analysis**.
+
+---
+
+# 📂 Repository Structure
+
+```
+data/
+  artifacts/                # runtime artifacts
+
+scripts/
+  run_pipeline.py           # scraping pipeline
+  run_one_job_mcp.py        # MCP tool chain runner
+  run_graph_one.py          # LangGraph orchestration runner
+
+src/
+
+  connectors/               # scraping adapters
+
+  llm/
+    providers/              # API + HF inference abstraction
+    json_repair.py          # robust JSON parsing
+
+  mcp_server/
+    server.py               # MCP tool server
+    tools_*.py              # tool implementations
+
+  orch/
+    graph.py                # LangGraph workflow
+    schema.py               # structured state contracts
+
+  training/
+    train_lora.py           # LoRA fine-tuning pipeline
+
+  db.py                     # SQLite persistence
+  report.py                 # markdown report generation
+
+models/
+  qwen2.5-0.5b-jd-lora/     # trained LoRA adapters
+```
+
+---
 
 # ⚙️ Environment Setup
 
-## 1️⃣ Install Dependencies
+## Install dependencies
 
-Project uses `uv` for dependency management.
+Project uses **uv** for dependency management.
 
 ```
 uv sync
 ```
 
-## 2️⃣ Install Playwright Browsers (Required)
+---
+
+## Install Playwright browsers
 
 ```
-uv run python -m playwright install --with-deps
+python -m playwright install --with-deps
 ```
 
-⚠️ Without this step, scraping will fail.
+Without this step scraping will fail.
 
-## 3️⃣ Set API Keys (Optional if using local-only)
+---
+
+## Set API keys (optional)
 
 ```
-export OPENAI_API_KEY="your_key"
-export NVIDIA_API_KEY="your_key"
+export OPENAI_API_KEY=your_key
+export NVIDIA_API_KEY=your_key
 ```
 
-------
+Local-only workflows do not require API keys.
 
-# 🚀 Usage
+---
+
+# 🚀 Typical Workflow
 
 ## 1️⃣ Scrape Job Postings
-For the first time, 
-```
-uv run python scripts/login.py
-```
 
-Then
 ```
 uv run python scripts/run_pipeline.py --pages 1 --limit 10
 ```
 
-Stored in:
+Outputs:
 
 ```
 data/db/jobs.db
+data/artifacts/scrape/<run_id>/
 ```
 
+---
 
-------
-
-## 2️⃣ Run Single Job via MCP Tool Chain
+## 2️⃣ Run MCP Tool Chain
 
 ```
 uv run python scripts/run_one_job_mcp.py \
@@ -171,27 +288,38 @@ uv run python scripts/run_one_job_mcp.py \
   --provider openai
 ```
 
-------
+Artifacts:
 
-## 3️⃣ Run LangGraph Orchestration (Local-first + Fallback)
+```
+data/artifacts/mcp/<job_id>/
+```
+
+---
+
+## 3️⃣ Run LangGraph Orchestration
 
 ```
 uv run python scripts/run_graph_one.py \
   --job-id 10704289 \
   --local-first \
   --local-model Qwen/Qwen2.5-3B-Instruct \
-  --local-mode plain \
   --extract-provider openai \
   --report-provider openai
 ```
 
-------
+Artifacts:
+
+```
+data/artifacts/langgraph/<run_id>/<job_id>/
+```
+
+---
 
 # 🧠 LoRA Fine-Tuning
 
-## Dataset
+JobPulse includes a LoRA pipeline for improving structured extraction.
 
-Located in:
+Dataset:
 
 ```
 src/training/datasets/
@@ -199,41 +327,45 @@ src/training/datasets/
   jd_struct_val.jsonl
 ```
 
-Generated from teacher model outputs.
+Generated using teacher-model supervision.
 
-## Train
+Train:
 
 ```
 uv run python src/training/train_lora.py
 ```
 
-## Output
-
-LoRA adapter saved to:
+Output:
 
 ```
 models/qwen2.5-0.5b-jd-lora/
 ```
 
-------
+---
 
-# 🔄 Provider Support
+# 📄 Example Skill-Gap Report
 
-JobPulse supports OpenAI-compatible backends:
-
-| Provider | Example Model        |
-| -------- | -------------------- |
-| OpenAI   | gpt-4o-mini          |
-| NVIDIA   | moonshotai/kimi-k2.5 |
-| Local HF | Qwen + LoRA          |
-
-Example NVIDIA endpoint:
+Example output:
 
 ```
-https://integrate.api.nvidia.com/v1
+### Role: Machine Learning Engineer
+
+Required Skills
+- Python
+- PyTorch
+- Distributed Training
+- Data Pipelines
+
+Candidate Skill Gap
+- Distributed Training
+- MLOps Infrastructure
+
+Suggested Learning Focus
+- Ray / Spark distributed systems
+- Model deployment pipelines
 ```
 
-------
+---
 
 # 🛠 MCP Tool Server
 
@@ -245,59 +377,58 @@ python -m src.mcp_server.server
 
 Available tools:
 
-- `fetch_jd`
-- `extract_local`
-- `extract_api`
-- `qc_validate`
-- `generate_report_api`
+```
+fetch_jd
+extract_local
+extract_api
+qc_validate
+generate_report_api
+```
 
-------
-
-# 📈 Reliability Strategy
+This allows integration with agents, orchestration frameworks, or external pipelines.
 
 ---
 
-## 📊 Scraper Reliability & Metrics
+# 🛡 Reliability Strategy
 
-The scraping subsystem is instrumented with:
+JobPulse implements reliability patterns commonly used in production LLM systems.
 
-- Stage-level latency histograms
-- Idempotent content hashing
-- Run-level audit logs
-- Data Quality SLO enforcement
-
-Example Production Run (run_id: 50eed95dea):
-
-- 62 jobs processed
-- 100% ingestion success
-- parse_detail P50 ≈ 12s
-- desc_len_p50 ≈ 6868 chars
-- skills_per_job_p50 = 1 (DQ-SLO failed)
-
-This demonstrates:
-- Separation of availability vs. data quality SLOs
-- Drift detection via metric thresholds
-- Artifact-based observability
-
-## Extraction Flow
+## Local-First Extraction
 
 ```
 local → qc_fail → api → qc_pass → report
 ```
 
+---
+
+## QC Validation Gate
+
+Extraction must pass validation before report generation.
+
+Checks include:
+
+- required fields present  
+- non-empty critical fields  
+- JSON integrity  
+
+---
+
 ## JSON Hardening
 
-- Code fence stripping
-- Tail extraction
-- Bracket repair
-- Balanced truncation
-- Final brace-matching fallback
+LLM outputs are sanitized using:
 
-This significantly reduces malformed LLM output failure rates.
+- code fence stripping  
+- bracket repair  
+- JSON tail extraction  
+- balanced truncation  
 
-------
+This significantly reduces malformed output failures.
+
+---
 
 # 🧩 Tech Stack
+
+Core technologies:
 
 - Python
 - PyTorch
@@ -308,27 +439,47 @@ This significantly reduces malformed LLM output failure rates.
 - Playwright
 - SQLite
 
-------
+---
 
 # 🎯 Engineering Highlights
 
 This project demonstrates:
 
-- Production-style LLM system design
-- Model fine-tuning workflow
-- Provider abstraction layer
-- Structured validation patterns
-- Fallback orchestration
-- Artifact-based observability
-- Reliability engineering for LLM output
+- production-style LLM pipeline architecture
+- provider-agnostic inference layer
+- local-first routing strategy
+- structured schema validation
+- artifact-based observability
+- LangGraph orchestration
+- LoRA fine-tuning workflows
+- MCP tool interface design
 
-------
+The architecture mirrors patterns used in modern AI infrastructure systems.
+
+---
 
 # 🔮 Future Improvements
 
-- Batch graph runner
-- Structured extraction evaluation dashboard
-- Resume ingestion + automated skill-gap comparison
-- Async scraping
+Planned extensions include:
+
+- batch graph runner for large datasets
+- structured extraction evaluation dashboard
+- resume ingestion + skill-gap matching
+- asynchronous scraping pipeline
 - Dockerized deployment
-- Monitoring & metrics layer
+- monitoring and metrics layer
+
+---
+
+# ⭐ Project Focus
+
+This repository focuses on **LLM systems engineering**, not just prompt usage.
+
+Key themes include:
+
+- reliability
+- reproducibility
+- observability
+- orchestration
+
+These are critical capabilities for building real-world AI applications.
