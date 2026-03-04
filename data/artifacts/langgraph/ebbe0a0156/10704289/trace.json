@@ -1,0 +1,85 @@
+[
+  {
+    "t": "2026-02-28 16:42:07",
+    "step": "fetch_jd",
+    "status": "start"
+  },
+  {
+    "t": "2026-02-28 16:42:13",
+    "step": "fetch_jd",
+    "status": "ok",
+    "jd_len": 5204,
+    "elapsed_ms": 5608
+  },
+  {
+    "t": "2026-02-28 16:42:13",
+    "step": "extract_local",
+    "status": "start"
+  },
+  {
+    "t": "2026-02-28 16:42:16",
+    "step": "extract_local",
+    "status": "fail",
+    "error": "Expecting value: line 1 column 1 (char 0)",
+    "elapsed_ms": 3110
+  },
+  {
+    "t": "2026-02-28 16:42:16",
+    "step": "qc_validate",
+    "status": "start"
+  },
+  {
+    "t": "2026-02-28 16:42:20",
+    "step": "qc_validate",
+    "status": "ok",
+    "qc": "fail",
+    "issues": [
+      "parse_failed"
+    ],
+    "elapsed_ms": 4008
+  },
+  {
+    "t": "2026-02-28 16:42:20",
+    "step": "extract_api",
+    "status": "start",
+    "provider": "openai"
+  },
+  {
+    "t": "2026-02-28 16:42:31",
+    "step": "extract_api",
+    "status": "ok",
+    "parse_ok": true,
+    "elapsed_ms": 10690
+  },
+  {
+    "t": "2026-02-28 16:42:31",
+    "step": "qc_validate",
+    "status": "start"
+  },
+  {
+    "t": "2026-02-28 16:42:35",
+    "step": "qc_validate",
+    "status": "ok",
+    "qc": "pass",
+    "issues": [],
+    "elapsed_ms": 4305
+  },
+  {
+    "t": "2026-02-28 16:42:35",
+    "step": "generate_report_api",
+    "status": "start",
+    "provider": "openai"
+  },
+  {
+    "t": "2026-02-28 16:42:44",
+    "step": "generate_report_api",
+    "status": "ok",
+    "tokens": 852,
+    "elapsed_ms": 8562
+  },
+  {
+    "t": "2026-02-28 16:42:44",
+    "step": "finalize",
+    "status": "ok"
+  }
+]

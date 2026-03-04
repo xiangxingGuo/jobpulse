@@ -11,8 +11,8 @@
   },
   "parse_repaired": false,
   "extractor": {
-    "mode": "plain",
-    "model": "Qwen/Qwen2.5-3B-Instruct",
-    "lora_path": null
+    "provider": "openai",
+    "model": "gpt-4o-mini",
+    "base_url": "https://api.openai.com"
   }
 }

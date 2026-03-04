@@ -1,8 +1,10 @@
 {
+  "parse_ok": true,
+  "parse_repaired": false,
   "usage": {
-    "prompt_tokens": 540,
-    "completion_tokens": 305,
-    "total_tokens": 845,
+    "prompt_tokens": 1897,
+    "completion_tokens": 351,
+    "total_tokens": 2248,
     "prompt_tokens_details": {
       "cached_tokens": 0,
       "audio_tokens": 0
@@ -14,7 +16,7 @@
       "rejected_prediction_tokens": 0
     }
   },
-  "meta": {
+  "extractor": {
     "provider": "openai",
     "model": "gpt-4o-mini",
     "base_url": "https://api.openai.com"

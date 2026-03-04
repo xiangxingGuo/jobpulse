@@ -1,0 +1,54 @@
+{
+  "role_title": "Data Engineering Intern",
+  "company": "Texas Instruments",
+  "location": null,
+  "employment_type": "Internship",
+  "remote_policy": null,
+  "responsibilities": [
+    "Assist in developing data pipelines and ETL workflows",
+    "Support building and optimizing data models and databases",
+    "Participate in data cleaning and quality checks",
+    "Work with SQL, Python, and Spark for data flows",
+    "Collaborate with teams to understand data requirements",
+    "Monitor data infrastructure performance and troubleshoot",
+    "Contribute to documentation for data models and pipelines",
+    "Learn about emerging data technologies"
+  ],
+  "requirements": [
+    "Currently pursuing a degree in related field",
+    "Cumulative 3.0/4.0 GPA or higher"
+  ],
+  "preferred_qualifications": [
+    "Coursework in Python, Java, or SQL",
+    "Basic understanding of database concepts",
+    "Exposure to big data platforms like Spark",
+    "Familiarity with cloud services like AWS or Azure",
+    "Strong verbal and written communication skills"
+  ],
+  "skills": [
+    "SQL",
+    "Python",
+    "Spark",
+    "ETL",
+    "Data modeling",
+    "Data cleaning",
+    "Data validation",
+    "Cloud services",
+    "Big data",
+    "Data architecture",
+    "Data workflows",
+    "Data pipelines",
+    "Data analysis",
+    "Machine learning",
+    "Documentation",
+    "Troubleshooting",
+    "Collaboration",
+    "Interpersonal skills",
+    "Analytical skills",
+    "Problem-solving",
+    "Time management"
+  ],
+  "years_experience_min": null,
+  "degree_level": "Bachelor",
+  "visa_sponsorship": "No"
+}

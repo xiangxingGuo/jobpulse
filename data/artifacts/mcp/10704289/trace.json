@@ -1,0 +1,111 @@
+[
+  {
+    "t": "2026-02-27 10:53:34",
+    "step": "mcp.initialize",
+    "status": "start"
+  },
+  {
+    "t": "2026-02-27 10:53:37",
+    "step": "mcp.initialize",
+    "status": "ok"
+  },
+  {
+    "t": "2026-02-27 10:53:37",
+    "step": "fetch_jd",
+    "status": "start",
+    "args_keys": [
+      "job_id",
+      "source"
+    ]
+  },
+  {
+    "t": "2026-02-27 10:53:37",
+    "step": "fetch_jd",
+    "status": "ok",
+    "elapsed_s": 0.017
+  },
+  {
+    "t": "2026-02-27 10:53:37",
+    "step": "extract_local",
+    "status": "start",
+    "args_keys": [
+      "jd_text",
+      "job_id",
+      "max_tokens",
+      "prompt_name",
+      "temperature"
+    ]
+  },
+  {
+    "t": "2026-02-27 10:53:37",
+    "step": "extract_local",
+    "status": "fail",
+    "error": "Tool extract_local returned non-JSON text (first 500 chars): Error executing tool extract_local: cannot access local variable 'do_sample' where it is not associated with a value"
+  },
+  {
+    "t": "2026-02-27 10:53:37",
+    "step": "extract_api",
+    "status": "start",
+    "args_keys": [
+      "jd_text",
+      "job_id",
+      "max_tokens",
+      "prompt_name",
+      "provider",
+      "temperature"
+    ]
+  },
+  {
+    "t": "2026-02-27 10:53:45",
+    "step": "extract_api",
+    "status": "ok",
+    "elapsed_s": 7.473
+  },
+  {
+    "t": "2026-02-27 10:53:45",
+    "step": "qc_validate",
+    "status": "start",
+    "args_keys": [
+      "extractor",
+      "job_id",
+      "parse_ok",
+      "parse_repaired",
+      "require_keys",
+      "require_non_empty_any_of",
+      "structured"
+    ]
+  },
+  {
+    "t": "2026-02-27 10:53:45",
+    "step": "qc_validate",
+    "status": "ok",
+    "elapsed_s": 0.007
+  },
+  {
+    "t": "2026-02-27 10:53:45",
+    "step": "generate_report_api",
+    "status": "start",
+    "args_keys": [
+      "job_id",
+      "match",
+      "max_tokens",
+      "provider",
+      "qc",
+      "resume_text",
+      "structured",
+      "temperature"
+    ]
+  },
+  {
+    "t": "2026-02-27 10:53:50",
+    "step": "generate_report_api",
+    "status": "ok",
+    "elapsed_s": 5.091
+  },
+  {
+    "t": "2026-02-27 10:53:50",
+    "step": "done",
+    "status": "ok",
+    "elapsed_s": 16.35
+  }
+]

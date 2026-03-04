@@ -1,0 +1,26 @@
+{
+  "job_id": "10704289",
+  "source": "handshake",
+  "local_first": true,
+  "fallback_to_api": true,
+  "provider": "openai",
+  "model": null,
+  "prompt_name": "jd_extract_v2",
+  "temperature_extract": 0.0,
+  "max_tokens_extract": 1200,
+  "temperature_report": 0.2,
+  "max_tokens_report": 900,
+  "require_keys": [
+    "role_title",
+    "company",
+    "requirements",
+    "responsibilities"
+  ],
+  "require_non_empty_any_of": [
+    [
+      "requirements",
+      "responsibilities"
+    ]
+  ],
+  "out_dir": "data/artifacts/mcp"
+}
