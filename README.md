@@ -234,7 +234,7 @@ models/
 
 ## Install dependencies
 
-Project uses **uv** for dependency management.
+Project uses **uv** for dependency management. You can install **uv** from [uv installation](https://docs.astral.sh/uv/getting-started/installation/)
 
 ```
 uv sync
