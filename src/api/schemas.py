@@ -1,0 +1,62 @@
+from __future__ import annotations
+
+from typing import Any
+
+from pydantic import BaseModel, Field
+
+
+class SearchRequest(BaseModel):
+    query: str = Field(..., min_length=1)
+    top_k: int = Field(default=10, ge=1, le=50)
+
+
+class SearchResult(BaseModel):
+    job_id: str
+    title: str | None = None
+    company: str | None = None
+    location: str | None = None
+    url: str | None = None
+    score: float
+
+
+class SearchResponse(BaseModel):
+    query: str
+    top_k: int
+    results: list[SearchResult]
+
+
+class SimilarResponse(BaseModel):
+    job_id: str
+    top_k: int
+    results: list[SearchResult]
+
+
+class HealthResponse(BaseModel):
+    status: str
+    index_ready: bool
+
+
+class JobDetailResponse(BaseModel):
+    job_id: str
+    url: str | None = None
+    title: str | None = None
+    company: str | None = None
+    location_text: str | None = None
+    description: str | None = None
+    skills: list[str] = []
+    scrape_status: str | None = None
+    scrape_error: str | None = None
+    content_hash: str | None = None
+    last_seen_at_utc: str | None = None
+    structured: dict[str, Any] | None = None
+    structured_meta: dict[str, Any] | None = None
+
+
+class RecentRunsResponse(BaseModel):
+    runs: list[dict[str, Any]]
+
+class MetricsSummaryResponse(BaseModel):
+    runs_considered: int
+    scrape: dict[str, Any]
+    counts: dict[str, int]
+    latest_runs: list[dict[str, Any]]
