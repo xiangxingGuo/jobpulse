@@ -44,3 +44,4 @@ data/raw/jd_txt/**
 # artifacts demo should be tracked
 !data/artifacts/demo/
 !data/artifacts/demo/**
+data/vectors/*

@@ -11,6 +11,8 @@ def main() -> None:
         "streamlit",
         "run",
         "src/ui/app.py",
+        "--server.address=0.0.0.0",
+        "--server.port=8501",
     ]
     raise SystemExit(subprocess.call(cmd))
 
