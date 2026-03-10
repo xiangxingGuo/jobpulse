@@ -50,6 +50,8 @@ def extract_local(
     """
     prompt = _build_prompt(prompt_name, jd_text)
 
+    do_sample = bool(temperature and temperature > 0)
+
     extractor_meta: Dict[str, Any] = {
         "mode": mode,
         "model": model,
@@ -61,8 +63,6 @@ def extract_local(
         "top_k": top_k,
         "seed": seed,
     }
-
-    do_sample = bool(temperature and temperature > 0)
 
     if mode == "plain":
         extractor = HFPlainExtractor(
