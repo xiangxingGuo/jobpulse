@@ -75,6 +75,18 @@ CREATE INDEX IF NOT EXISTS idx_scrape_events_run ON scrape_events(run_id);
 CREATE INDEX IF NOT EXISTS idx_scrape_events_job ON scrape_events(job_id);
 """
 
+EMBED_SCHEMA = """
+CREATE TABLE IF NOT EXISTS job_embeddings (
+  job_id TEXT PRIMARY KEY,
+  content_hash TEXT,
+  embedding_model TEXT NOT NULL,
+  indexed_at_utc TEXT NOT NULL,
+  FOREIGN KEY (job_id) REFERENCES jobs(job_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_job_embeddings_model ON job_embeddings(embedding_model);
+"""
+
 def _utc_now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
@@ -109,6 +121,7 @@ def init_db() -> None:
     with get_conn() as conn:
         conn.executescript(BASE_SCHEMA)
         conn.executescript(AUDIT_SCHEMA)
+        conn.executescript(EMBED_SCHEMA)
         migrate(conn)
         conn.commit()
 
@@ -245,3 +258,343 @@ def update_job_operational(job_id: str, scrape_status: str, scrape_error: Option
             (scrape_status, scrape_error, job_id),
         )
         conn.commit()
+
+def fetch_jobs_for_retrieval(limit: Optional[int] = None) -> List[Dict[str, Any]]:
+    """
+    Fetch jobs with skills and structured extraction for embedding / retrieval.
+    """
+    with get_conn() as conn:
+        sql = """
+        SELECT
+            j.job_id,
+            j.url,
+            j.title,
+            j.company,
+            j.location_text,
+            j.description,
+            j.content_hash,
+            js.data_json
+        FROM jobs j
+        LEFT JOIN jobs_structured js
+          ON j.job_id = js.job_id
+        """
+
+        if limit:
+            sql += " LIMIT ?"
+            rows = conn.execute(sql, (limit,)).fetchall()
+        else:
+            rows = conn.execute(sql).fetchall()
+
+        jobs = []
+
+        for r in rows:
+            (
+                job_id,
+                url,
+                title,
+                company,
+                location_text,
+                description,
+                content_hash,
+                structured_json,
+            ) = r
+
+            # load structured extraction
+            structured = None
+            if structured_json:
+                try:
+                    structured = json.loads(structured_json)
+                except Exception:
+                    structured = None
+
+            # fetch skills
+            skills_rows = conn.execute(
+                "SELECT skill FROM job_skills WHERE job_id=?",
+                (job_id,),
+            ).fetchall()
+
+            skills = [s[0] for s in skills_rows]
+
+            jobs.append(
+                {
+                    "job_id": job_id,
+                    "url": url,
+                    "title": title,
+                    "company": company,
+                    "location_text": location_text,
+                    "description": description,
+                    "skills": skills,
+                    "structured": structured,
+                    "content_hash": content_hash,
+                }
+            )
+
+        return jobs
+
+def fetch_job_detail(job_id: str) -> Optional[Dict[str, Any]]:
+    with get_conn() as conn:
+        row = conn.execute(
+            """
+            SELECT
+                j.job_id,
+                j.url,
+                j.title,
+                j.company,
+                j.location_text,
+                j.description,
+                j.scrape_status,
+                j.scrape_error,
+                j.content_hash,
+                j.last_seen_at_utc,
+                js.model,
+                js.schema_version,
+                js.prompt_version,
+                js.data_json,
+                js.confidence,
+                js.error,
+                js.extracted_at_utc
+            FROM jobs j
+            LEFT JOIN jobs_structured js
+              ON j.job_id = js.job_id
+            WHERE j.job_id = ?
+            """,
+            (job_id,),
+        ).fetchone()
+
+        if not row:
+            return None
+
+        (
+            job_id,
+            url,
+            title,
+            company,
+            location_text,
+            description,
+            scrape_status,
+            scrape_error,
+            content_hash,
+            last_seen_at_utc,
+            model,
+            schema_version,
+            prompt_version,
+            data_json,
+            confidence,
+            structured_error,
+            extracted_at_utc,
+        ) = row
+
+        skills_rows = conn.execute(
+            "SELECT skill FROM job_skills WHERE job_id=? ORDER BY skill ASC",
+            (job_id,),
+        ).fetchall()
+        skills = [r[0] for r in skills_rows]
+
+        structured = None
+        if data_json:
+            try:
+                structured = json.loads(data_json)
+            except Exception:
+                structured = None
+
+        return {
+            "job_id": job_id,
+            "url": url,
+            "title": title,
+            "company": company,
+            "location_text": location_text,
+            "description": description,
+            "skills": skills,
+            "scrape_status": scrape_status,
+            "scrape_error": scrape_error,
+            "content_hash": content_hash,
+            "last_seen_at_utc": last_seen_at_utc,
+            "structured": structured,
+            "structured_meta": {
+                "model": model,
+                "schema_version": schema_version,
+                "prompt_version": prompt_version,
+                "confidence": confidence,
+                "error": structured_error,
+                "extracted_at_utc": extracted_at_utc,
+            },
+        }
+
+
+def fetch_recent_scrape_runs(limit: int = 10) -> List[Dict[str, Any]]:
+    with get_conn() as conn:
+        rows = conn.execute(
+            """
+            SELECT
+                run_id,
+                started_at_utc,
+                finished_at_utc,
+                summary_json,
+                elapsed_sec,
+                slo_met
+            FROM scrape_runs
+            ORDER BY started_at_utc DESC
+            LIMIT ?
+            """,
+            (limit,),
+        ).fetchall()
+
+        out: List[Dict[str, Any]] = []
+        for r in rows:
+            run_id, started_at_utc, finished_at_utc, summary_json, elapsed_sec, slo_met = r
+
+            summary = None
+            if summary_json:
+                try:
+                    summary = json.loads(summary_json)
+                except Exception:
+                    summary = None
+
+            out.append(
+                {
+                    "run_id": run_id,
+                    "started_at_utc": started_at_utc,
+                    "finished_at_utc": finished_at_utc,
+                    "elapsed_sec": elapsed_sec,
+                    "slo_met": None if slo_met is None else bool(slo_met),
+                    "summary": summary,
+                }
+            )
+        return out
+
+def fetch_metrics_summary(limit: int = 20) -> Dict[str, Any]:
+    runs = fetch_recent_scrape_runs(limit=limit)
+
+    if not runs:
+        return {
+            "runs_considered": 0,
+            "scrape": {
+                "avg_elapsed_sec": None,
+                "slo_pass_rate": None,
+                "success_rate_avg": None,
+                "dq_slo_pass_rate": None,
+            },
+            "counts": {},
+            "latest_runs": [],
+        }
+
+    elapsed_vals = []
+    slo_flags = []
+    success_rates = []
+    dq_slo_flags = []
+
+    agg_counts: Dict[str, int] = {}
+
+    for run in runs:
+        if run.get("elapsed_sec") is not None:
+            elapsed_vals.append(float(run["elapsed_sec"]))
+
+        if run.get("slo_met") is not None:
+            slo_flags.append(bool(run["slo_met"]))
+
+        summary = run.get("summary") or {}
+
+        slo = summary.get("slo") or {}
+        if slo.get("success_rate") is not None:
+            success_rates.append(float(slo["success_rate"]))
+
+        dq_slo = summary.get("dq_slo") or {}
+        if dq_slo.get("met") is not None:
+            dq_slo_flags.append(bool(dq_slo["met"]))
+
+        counts = summary.get("counts") or {}
+        for k, v in counts.items():
+            try:
+                agg_counts[k] = agg_counts.get(k, 0) + int(v)
+            except Exception:
+                pass
+
+    def _avg(xs):
+        return (sum(xs) / len(xs)) if xs else None
+
+    def _rate(flags):
+        return (sum(1 for x in flags if x) / len(flags)) if flags else None
+
+    latest_runs = []
+    for run in runs[:10]:
+        summary = run.get("summary") or {}
+        latest_runs.append(
+            {
+                "run_id": run.get("run_id"),
+                "started_at_utc": run.get("started_at_utc"),
+                "elapsed_sec": run.get("elapsed_sec"),
+                "slo_met": run.get("slo_met"),
+                "success_rate": ((summary.get("slo") or {}).get("success_rate")),
+                "dq_slo_met": ((summary.get("dq_slo") or {}).get("met")),
+                "jobs_upserted": ((summary.get("counts") or {}).get("jobs_upserted")),
+                "jobs_parsed_ok": ((summary.get("counts") or {}).get("jobs_parsed_ok")),
+            }
+        )
+
+    return {
+        "runs_considered": len(runs),
+        "scrape": {
+            "avg_elapsed_sec": _avg(elapsed_vals),
+            "slo_pass_rate": _rate(slo_flags),
+            "success_rate_avg": _avg(success_rates),
+            "dq_slo_pass_rate": _rate(dq_slo_flags),
+        },
+        "counts": agg_counts,
+        "latest_runs": latest_runs,
+    }
+
+def upsert_job_embedding_record(job_id: str, content_hash: Optional[str], embedding_model: str) -> None:
+    with get_conn() as conn:
+        conn.execute(
+            """
+            INSERT INTO job_embeddings (job_id, content_hash, embedding_model, indexed_at_utc)
+            VALUES (?, ?, ?, ?)
+            ON CONFLICT(job_id) DO UPDATE SET
+              content_hash=excluded.content_hash,
+              embedding_model=excluded.embedding_model,
+              indexed_at_utc=excluded.indexed_at_utc
+            """,
+            (job_id, content_hash, embedding_model, _utc_now_iso()),
+        )
+        conn.commit()
+
+
+def get_embedding_record(job_id: str) -> Optional[Dict[str, Any]]:
+    with get_conn() as conn:
+        row = conn.execute(
+            """
+            SELECT job_id, content_hash, embedding_model, indexed_at_utc
+            FROM job_embeddings
+            WHERE job_id = ?
+            """,
+            (job_id,),
+        ).fetchone()
+        if not row:
+            return None
+        return {
+            "job_id": row[0],
+            "content_hash": row[1],
+            "embedding_model": row[2],
+            "indexed_at_utc": row[3],
+        }
+
+
+def fetch_jobs_needing_reindex(embedding_model: str, limit: Optional[int] = None) -> List[Dict[str, Any]]:
+    rows = fetch_jobs_for_retrieval(limit=None)
+
+    out: List[Dict[str, Any]] = []
+    for row in rows:
+        rec = get_embedding_record(str(row["job_id"]))
+        if rec is None:
+            out.append(row)
+            continue
+        if rec.get("embedding_model") != embedding_model:
+            out.append(row)
+            continue
+        if rec.get("content_hash") != row.get("content_hash"):
+            out.append(row)
+            continue
+
+    if limit is not None:
+        return out[:limit]
+    return out
