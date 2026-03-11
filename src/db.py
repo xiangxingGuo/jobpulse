@@ -598,3 +598,63 @@ def fetch_jobs_needing_reindex(embedding_model: str, limit: Optional[int] = None
     if limit is not None:
         return out[:limit]
     return out
+
+def fetch_analytics_summary(limit: int = 10) -> Dict[str, Any]:
+    with get_conn() as conn:
+        total_jobs_row = conn.execute("SELECT COUNT(*) FROM jobs").fetchone()
+        total_jobs = int(total_jobs_row[0]) if total_jobs_row else 0
+
+        top_skills_rows = conn.execute(
+            """
+            SELECT skill, COUNT(*) AS cnt
+            FROM job_skills
+            GROUP BY skill
+            ORDER BY cnt DESC, skill ASC
+            LIMIT ?
+            """,
+            (limit,),
+        ).fetchall()
+
+        top_companies_rows = conn.execute(
+            """
+            SELECT company, COUNT(*) AS cnt
+            FROM jobs
+            WHERE company IS NOT NULL AND TRIM(company) <> ''
+            GROUP BY company
+            ORDER BY cnt DESC, company ASC
+            LIMIT ?
+            """,
+            (limit,),
+        ).fetchall()
+
+        top_locations_rows = conn.execute(
+            """
+            SELECT location_text, COUNT(*) AS cnt
+            FROM jobs
+            WHERE location_text IS NOT NULL AND TRIM(location_text) <> ''
+            GROUP BY location_text
+            ORDER BY cnt DESC, location_text ASC
+            LIMIT ?
+            """,
+            (limit,),
+        ).fetchall()
+
+        top_titles_rows = conn.execute(
+            """
+            SELECT title, COUNT(*) AS cnt
+            FROM jobs
+            WHERE title IS NOT NULL AND TRIM(title) <> ''
+            GROUP BY title
+            ORDER BY cnt DESC, title ASC
+            LIMIT ?
+            """,
+            (limit,),
+        ).fetchall()
+
+        return {
+            "total_jobs": total_jobs,
+            "top_skills": [{"name": r[0], "count": int(r[1])} for r in top_skills_rows],
+            "top_companies": [{"name": r[0], "count": int(r[1])} for r in top_companies_rows],
+            "top_locations": [{"name": r[0], "count": int(r[1])} for r in top_locations_rows],
+            "top_titles": [{"name": r[0], "count": int(r[1])} for r in top_titles_rows],
+        }

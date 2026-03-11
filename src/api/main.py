@@ -17,6 +17,8 @@ from src.db import fetch_job_detail, fetch_recent_scrape_runs
 from src.retrieval.search import JobSearchService
 from src.api.schemas import MetricsSummaryResponse
 from src.db import fetch_job_detail, fetch_recent_scrape_runs, fetch_metrics_summary
+from src.api.schemas import AnalyticsSummaryResponse
+from src.db import fetch_analytics_summary
 
 INDEX_DIR = Path("data/vectors")
 
@@ -100,3 +102,8 @@ def recent_runs(limit: int = 10) -> RecentRunsResponse:
 def metrics_summary(limit: int = 20) -> MetricsSummaryResponse:
     row = fetch_metrics_summary(limit=limit)
     return MetricsSummaryResponse(**row)
+
+@app.get("/analytics/summary", response_model=AnalyticsSummaryResponse)
+def analytics_summary(limit: int = 10) -> AnalyticsSummaryResponse:
+    row = fetch_analytics_summary(limit=limit)
+    return AnalyticsSummaryResponse(**row)

@@ -60,3 +60,15 @@ class MetricsSummaryResponse(BaseModel):
     scrape: dict[str, Any]
     counts: dict[str, int]
     latest_runs: list[dict[str, Any]]
+
+class AnalyticsItem(BaseModel):
+    name: str
+    count: int
+
+
+class AnalyticsSummaryResponse(BaseModel):
+    total_jobs: int
+    top_skills: list[AnalyticsItem]
+    top_companies: list[AnalyticsItem]
+    top_locations: list[AnalyticsItem]
+    top_titles: list[AnalyticsItem]
