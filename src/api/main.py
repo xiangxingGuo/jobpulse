@@ -19,6 +19,13 @@ from src.api.schemas import MetricsSummaryResponse
 from src.db import fetch_job_detail, fetch_recent_scrape_runs, fetch_metrics_summary
 from src.api.schemas import AnalyticsSummaryResponse
 from src.db import fetch_analytics_summary
+from src.api.schemas import ResumeMatchRequest, ResumeMatchResponse
+from src.retrieval.resume_match import match_resume_to_jobs
+from fastapi import FastAPI, HTTPException, UploadFile, File
+from src.api.schemas import ResumeParseResponse
+from src.resume.parse import extract_resume_text
+
+
 
 INDEX_DIR = Path("data/vectors")
 
@@ -107,3 +114,30 @@ def metrics_summary(limit: int = 20) -> MetricsSummaryResponse:
 def analytics_summary(limit: int = 10) -> AnalyticsSummaryResponse:
     row = fetch_analytics_summary(limit=limit)
     return AnalyticsSummaryResponse(**row)
+
+@app.post("/resume/match", response_model=ResumeMatchResponse)
+def resume_match(req: ResumeMatchRequest) -> ResumeMatchResponse:
+    row = match_resume_to_jobs(req.resume_text, top_k=req.top_k)
+    return ResumeMatchResponse(**row)
+
+
+@app.post("/resume/parse", response_model=ResumeParseResponse)
+async def resume_parse(file: UploadFile = File(...)) -> ResumeParseResponse:
+    data = await file.read()
+
+    try:
+        text = extract_resume_text(file.filename or "resume.txt", data)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"failed to parse resume: {e}")
+
+    if not text.strip():
+        raise HTTPException(status_code=400, detail="parsed resume text is empty")
+
+    return ResumeParseResponse(
+        filename=file.filename or "resume.txt",
+        text_preview=" ".join(text.split())[:300],
+        chars=len(text),
+        resume_text=text,
+    )

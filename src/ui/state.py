@@ -14,6 +14,12 @@ def init_state() -> None:
         "selected_similar_jobs": [],
         "metrics_cache": None,
         "recent_runs_cache": None,
+        "resume_text": "",
+        "resume_top_k": 5,
+        "resume_match_result": None,
+        "resume_uploaded_name": None,
+        "resume_parse_meta": None,
+
     }
 
     for key, value in defaults.items():

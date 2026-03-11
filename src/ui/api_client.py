@@ -50,3 +50,36 @@ def get_analytics_summary(limit: int = 10) -> dict:
     r = requests.get(f"{API_BASE}/analytics/summary?limit={limit}", timeout=60)
     r.raise_for_status()
     return r.json()
+
+def match_resume(resume_text: str, top_k: int = 5) -> dict:
+    payload = {"resume_text": resume_text, "top_k": top_k}
+    r = requests.post(
+        f"{API_BASE}/resume/match",
+        json=payload,
+        timeout=90,
+    )
+
+    if not r.ok:
+        try:
+            detail = r.json()
+        except Exception:
+            detail = {"raw_text": r.text}
+        raise RuntimeError(f"/resume/match failed: status={r.status_code}, detail={detail}")
+
+    return r.json()
+
+
+def parse_resume_file(filename: str, file_bytes: bytes) -> dict:
+    files = {
+        "file": (filename, file_bytes),
+    }
+    r = requests.post(f"{API_BASE}/resume/parse", files=files, timeout=90)
+    
+    if not r.ok:
+        try:
+            detail = r.json()
+        except Exception:
+            detail = {"raw_text": r.text}
+        raise RuntimeError(f"/resume/parse failed: status={r.status_code}, detail={detail}")
+
+    return r.json()

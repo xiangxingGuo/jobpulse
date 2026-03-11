@@ -72,3 +72,36 @@ class AnalyticsSummaryResponse(BaseModel):
     top_companies: list[AnalyticsItem]
     top_locations: list[AnalyticsItem]
     top_titles: list[AnalyticsItem]
+
+class ResumeMatchRequest(BaseModel):
+    resume_text: str = Field(..., min_length=20)
+    top_k: int = Field(default=5, ge=1, le=20)
+
+
+class ResumeProfileResponse(BaseModel):
+    skills: list[str]
+    text_preview: str
+
+
+class ResumeMatchItem(BaseModel):
+    job_id: str
+    title: str | None = None
+    company: str | None = None
+    location: str | None = None
+    url: str | None = None
+    semantic_score: float
+    shared_skills: list[str]
+    missing_skills: list[str]
+    match_reasons: list[str]
+
+
+class ResumeMatchResponse(BaseModel):
+    resume_profile: ResumeProfileResponse
+    matches: list[ResumeMatchItem]
+
+class ResumeParseResponse(BaseModel):
+    filename: str
+    text_preview: str
+    chars: int
+    resume_text: str
+
