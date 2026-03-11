@@ -3,7 +3,11 @@ from __future__ import annotations
 import streamlit as st
 
 from src.ui.api_client import get_job, get_similar_jobs, search_jobs
-from src.ui.components import render_job_detail, render_result_card, render_similar_jobs
+from src.ui.components import (
+    render_inline_job_detail,
+    render_inline_similar_jobs,
+    render_result_card,
+)
 
 
 def render_search_page() -> None:
@@ -20,42 +24,55 @@ def render_search_page() -> None:
             st.session_state.search_query = query
             st.session_state.search_top_k = top_k
             st.session_state.search_results = data.get("results", [])
-            st.session_state.selected_job_id = None
-            st.session_state.selected_job_detail = None
-            st.session_state.selected_similar_jobs = []
+            st.session_state.search_expanded_job_id = None
+            st.session_state.search_expanded_job_detail = None
+            st.session_state.search_expanded_similar_jobs = []
             st.rerun()
 
         if st.button("Clear Search", use_container_width=True):
             st.session_state.search_results = []
-            st.session_state.selected_job_id = None
-            st.session_state.selected_job_detail = None
-            st.session_state.selected_similar_jobs = []
+            st.session_state.search_expanded_job_id = None
+            st.session_state.search_expanded_job_detail = None
+            st.session_state.search_expanded_similar_jobs = []
             st.rerun()
 
     results = st.session_state.search_results
-    left, right = st.columns([1.1, 1])
+    st.markdown(f"### Results ({len(results)})")
 
-    with left:
-        st.markdown(f"### Results ({len(results)})")
-        for job in results:
-            show_details, show_similar = render_result_card(job)
-            job_id = str(job.get("job_id"))
+    for job in results:
+        show_details, show_similar = render_result_card(job)
+        job_id = str(job.get("job_id"))
 
-            if show_details:
-                detail = get_job(job_id)
-                st.session_state.selected_job_id = job_id
-                st.session_state.selected_job_detail = detail
+        if show_details:
+            detail = get_job(job_id)
+            st.session_state.search_expanded_job_id = job_id
+            st.session_state.search_expanded_job_detail = detail
+            st.session_state.search_expanded_similar_jobs = []
+            st.rerun()
+
+        if show_similar:
+            detail = get_job(job_id)
+            similar = get_similar_jobs(job_id, top_k=5)
+            st.session_state.search_expanded_job_id = job_id
+            st.session_state.search_expanded_job_detail = detail
+            st.session_state.search_expanded_similar_jobs = similar.get("results", [])
+            st.rerun()
+
+        if st.session_state.search_expanded_job_id == job_id:
+            st.markdown("#### Job Details")
+            render_inline_job_detail(st.session_state.search_expanded_job_detail)
+
+            st.markdown("#### Similar Jobs")
+            selected_similar_job_id = render_inline_similar_jobs(
+                st.session_state.search_expanded_similar_jobs,
+                key_prefix=f"search_similar_{job_id}",
+            )
+
+            if selected_similar_job_id:
+                detail = get_job(selected_similar_job_id)
+                st.session_state.search_expanded_job_id = selected_similar_job_id
+                st.session_state.search_expanded_job_detail = detail
+                st.session_state.search_expanded_similar_jobs = []
                 st.rerun()
 
-            if show_similar:
-                similar = get_similar_jobs(job_id, top_k=5)
-                st.session_state.selected_job_id = job_id
-                st.session_state.selected_similar_jobs = similar.get("results", [])
-                if not st.session_state.selected_job_detail:
-                    st.session_state.selected_job_detail = get_job(job_id)
-                st.rerun()
-
-    with right:
-        render_job_detail(st.session_state.selected_job_detail)
-        st.markdown("---")
-        render_similar_jobs(st.session_state.selected_similar_jobs)
+            st.markdown("---")

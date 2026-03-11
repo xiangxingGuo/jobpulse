@@ -19,6 +19,17 @@ def init_state() -> None:
         "resume_match_result": None,
         "resume_uploaded_name": None,
         "resume_parse_meta": None,
+        "resume_selected_job_id": None,
+        "resume_selected_job_detail": None,
+        "resume_selected_similar_jobs": [],
+        "search_expanded_job_id": None,
+        "search_expanded_job_detail": None,
+        "search_expanded_similar_jobs": [],
+        "resume_expanded_job_id": None,
+        "resume_expanded_job_detail": None,
+        "resume_expanded_similar_jobs": [],
+
+
 
     }
 

@@ -1,0 +1,16 @@
+services:
+  api:
+    volumes:
+      - ..:/app
+    environment:
+      - PYTHONPATH=/app
+    command: python scripts/run_api.py
+
+  ui:
+    volumes:
+      - ..:/app
+      - ../data:/app/data
+    environment:
+      - PYTHONPATH=/app
+      - JOBPULSE_API_BASE=http://api:8000
+    command: python scripts/run_ui.py
