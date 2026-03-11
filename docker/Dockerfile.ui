@@ -10,12 +10,13 @@ RUN apt-get update && apt-get install -y \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-COPY pyproject.toml README.md ./
+COPY requirements.deploy.txt ./
 RUN pip install --no-cache-dir --upgrade pip setuptools wheel
-RUN pip install --no-cache-dir .
+RUN pip install --no-cache-dir -r requirements.deploy.txt
 
 COPY src ./src
 COPY scripts ./scripts
+COPY pyproject.toml README.md ./
 
 EXPOSE 8501
 
