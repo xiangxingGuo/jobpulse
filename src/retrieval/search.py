@@ -8,7 +8,7 @@ import numpy as np
 from src.db import fetch_jobs_for_retrieval
 from src.retrieval.embed import EmbeddingModel
 from src.retrieval.faiss_index import JobFaissIndex
-
+from functools import lru_cache
 
 DEFAULT_INDEX_DIR = Path("data/vectors")
 
@@ -32,10 +32,15 @@ class JobSearchService:
             for i, m in enumerate(self.index.meta)
             if m.get("job_id")
         }
+    
+    @lru_cache(maxsize=128)
+    def _encode_query_cached(self, query: str) -> tuple[float, ...]:
+        vec = self.model.encode([query])
+        return tuple(vec[0])
 
     def _encode_query(self, query: str) -> np.ndarray:
-        vec = self.model.encode([query])
-        return vec
+        arr = np.array([self._encode_query_cached(query)], dtype="float32")
+        return arr
 
     def search_jobs(self, query: str, top_k: int = 10) -> list[dict[str, Any]]:
         query = (query or "").strip()

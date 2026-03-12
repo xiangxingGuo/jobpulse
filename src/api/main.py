@@ -24,8 +24,21 @@ from src.retrieval.resume_match import match_resume_to_jobs
 from fastapi import FastAPI, HTTPException, UploadFile, File
 from src.api.schemas import ResumeParseResponse
 from src.resume.parse import extract_resume_text
+from contextlib import asynccontextmanager
 
 
+_search_service = None
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    global _search_service
+    try:
+        _search_service = JobSearchService(index_dir=INDEX_DIR)
+        print("Search service preloaded.")
+    except Exception as e:
+        print(f"Failed to preload search service: {e}")
+        _search_service = None
+    yield
 
 INDEX_DIR = Path("data/vectors")
 
@@ -33,6 +46,7 @@ app = FastAPI(
     title="JobPulse API",
     version="0.1.0",
     description="Semantic job search and retrieval API for JobPulse",
+    lifespan=lifespan,
 )
 
 _search_service: JobSearchService | None = None
