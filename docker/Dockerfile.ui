@@ -18,6 +18,9 @@ RUN pip install --index-url https://download.pytorch.org/whl/cpu torch
 RUN grep -v '^torch' requirements.deploy.txt > requirements.deploy.no_torch.txt \
     && pip install -r requirements.deploy.no_torch.txt
 
+RUN pip install playwright
+RUN python -m playwright install --with-deps
+
 COPY src ./src
 COPY scripts ./scripts
 COPY pyproject.toml README.md ./
