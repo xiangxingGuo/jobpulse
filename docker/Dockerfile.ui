@@ -4,18 +4,23 @@ WORKDIR /app
 
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
+ENV PIP_NO_CACHE_DIR=1
 
 RUN apt-get update && apt-get install -y \
     build-essential \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-COPY pyproject.toml README.md ./
-RUN pip install --no-cache-dir --upgrade pip setuptools wheel
-RUN pip install --no-cache-dir .
+COPY requirements.deploy.txt ./
+
+RUN pip install --upgrade pip setuptools wheel
+RUN pip install --index-url https://download.pytorch.org/whl/cpu torch
+RUN grep -v '^torch' requirements.deploy.txt > requirements.deploy.no_torch.txt \
+    && pip install -r requirements.deploy.no_torch.txt
 
 COPY src ./src
 COPY scripts ./scripts
+COPY pyproject.toml README.md ./
 
 EXPOSE 8501
 
