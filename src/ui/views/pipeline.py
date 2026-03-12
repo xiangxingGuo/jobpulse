@@ -8,7 +8,12 @@ from src.ui.api_client import get_metrics
 def render_pipeline_page() -> None:
     st.subheader("Pipeline Observability")
 
-    metrics = get_metrics(limit=20)
+    try:
+        metrics = get_metrics(limit=20)
+    except Exception as e:
+        st.error(f"Metrics unavailable: {e}")
+        metrics = {"runs_considered": 0, "scrape": {}, "counts": {}, "latest_runs": []}
+        
     scrape = metrics.get("scrape") or {}
     latest_runs = metrics.get("latest_runs") or []
     counts = metrics.get("counts") or {}

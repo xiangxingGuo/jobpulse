@@ -9,7 +9,11 @@ from src.ui.components import render_metric_cards
 def render_overview_page() -> None:
     st.subheader("Overview")
 
-    metrics = get_metrics(limit=20)
+    try:
+        metrics = get_metrics(limit=20)
+    except Exception as e:
+        st.error(f"Metrics unavailable: {e}")
+        metrics = {"runs_considered": 0, "scrape": {}, "counts": {}, "latest_runs": []}
     analytics = get_analytics_summary(limit=8)
 
     scrape = metrics.get("scrape") or {}
