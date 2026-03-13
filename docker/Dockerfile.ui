@@ -21,6 +21,14 @@ RUN grep -v '^torch' requirements.deploy.txt > requirements.deploy.no_torch.txt 
 RUN pip install playwright
 RUN python -m playwright install --with-deps
 
+RUN pip install playwright
+RUN python -m playwright install --with-deps
+RUN pip install playwright-stealth
+RUN pip install peft
+
+# for headless scraping
+RUN apt-get update && apt-get install -y xvfb
+
 COPY src ./src
 COPY scripts ./scripts
 COPY pyproject.toml README.md ./

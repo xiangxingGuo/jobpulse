@@ -7,12 +7,11 @@ import time
 from pathlib import Path
 
 
-def run(cmd: list[str], cwd: Path) -> None:
-    print(f"[RUN] {' '.join(cmd)}", flush=True)
-    rc = subprocess.call(cmd, cwd=str(cwd))
+def run(cmd: list[str]) -> None:
+    print(">", " ".join(cmd))
+    rc = subprocess.call(cmd)
     if rc != 0:
         raise SystemExit(rc)
-
 
 def main() -> None:
     ap = argparse.ArgumentParser()
@@ -52,7 +51,6 @@ def main() -> None:
         f"[DONE] daily update finished in {round(time.time() - t0, 2)} sec",
         flush=True,
     )
-
 
 if __name__ == "__main__":
     main()

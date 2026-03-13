@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 from __future__ import annotations
 
 import os
@@ -8,7 +7,7 @@ import math
 import random
 import hashlib
 import asyncio
-from dataclasses import asdict
+from dataclasses import asdict, replace
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, Optional, List
@@ -24,7 +23,7 @@ from src.scrape.detail import parse_job_detail, to_dict
 from src.extract import extract_skills
 
 from src import db
-
+import argparse
 
 # ----------------------------
 # Utils
@@ -192,8 +191,33 @@ class RunMetrics:
 
 
 async def main() -> None:
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--pages", type=int, default=None)
+    ap.add_argument("--limit", type=int, default=None)
+
+    group = ap.add_mutually_exclusive_group()
+    group.add_argument("--headless", action="store_true")
+    group.add_argument("--headed", action="store_true")
+
+    args = ap.parse_args()
+
     cfg = ScrapeConfig()
+
+    new_headless = cfg.headless
+    if args.headless:
+        new_headless = True
+    elif args.headed:
+        new_headless = False
+
+    cfg = replace(
+        cfg,
+        pages=args.pages if args.pages is not None else cfg.pages,
+        limit=args.limit if args.limit is not None else cfg.limit,
+        headless=new_headless,
+    )
+
     arts = artifact_paths(cfg)
+
     ensure_dir(arts["base"])
     ensure_dir(arts["bad_samples"])
     ensure_dir(arts["fail_samples"])
