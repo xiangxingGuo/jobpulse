@@ -1,42 +1,47 @@
 # JobPulse
 
-> **Local-first LLM job intelligence pipeline with structured validation, deterministic fallback orchestration, and artifact-based observability.**
+> **Production-style LLM job intelligence system with automated data pipelines, structured extraction, and artifact-based observability.**
 
-JobPulse is an end-to-end LLM system that transforms raw job postings into structured intelligence and actionable reports.
+JobPulse is an **end-to-end AI system** that transforms raw job postings into structured intelligence and actionable insights.
 
-The project demonstrates how to design **production-style LLM pipelines**, including:
+The system demonstrates **modern LLM infrastructure patterns**, including:
 
 - local-first model inference
 - deterministic fallback to API providers
 - structured schema validation
 - artifact-based observability
 - orchestration with LangGraph
-- MCP tool interface for modular execution
+- vector search with embeddings
+- automated data pipelines
+- containerized deployment
 
-The system is designed to mirror real industry LLM workflows where **reliability, traceability, and reproducibility** are as important as model accuracy.
+The architecture mirrors how **real production LLM pipelines** are built — prioritizing **reliability, traceability, and reproducibility**.
 
 ------
 
-# Live Demo
+# 🌐 Live Demo
+
 https://jobspulse.org/
 
+System Status: **Auto-updating every 6 hours**
 
+------
 
 # 🚀 What JobPulse Does
 
-JobPulse:
+JobPulse provides a complete pipeline for **job market intelligence**.
 
-- Scrapes job postings (Handshake + extensible connectors)
-- Extracts structured requirements using LLMs
-- Fine-tunes compact models using LoRA
-- Validates structured outputs with QC gates
-- Falls back across providers (Local → API)
-- Generates personalized skill-gap reports
-- Exposes functionality via MCP tools
-- Orchestrates workflows with LangGraph
+Capabilities include:
 
-------
-
+- Scraping job postings (Handshake + extensible connectors)
+- Extracting structured requirements using LLMs
+- Fine-tuning compact models using LoRA
+- Validating outputs using quality gates
+- Automatic provider fallback (Local → API)
+- Generating personalized skill-gap reports
+- Semantic job search via vector embeddings
+- MCP tool interface for agent integration
+- LangGraph orchestration for reliable workflows
 # 🏗 System Architecture
 
 ```mermaid
@@ -56,196 +61,411 @@ E -->|Fail| G[Fallback Router]
 
 G --> C
 
-F --> H[Artifact Storage<br>Trace + Metrics]
+B --> H[Embedding Model]
+
+H --> I[FAISS Vector Index]
+
+I --> J[Semantic Job Search]
+
+F --> K[Artifact Storage]
 ```
 
-## 🧠 Design Principles
+🌐 Deployment Architecture
 
-JobPulse follows several production-inspired LLM design patterns.
+JobPulse runs on a cloud VM using Docker containers, with Cloudflare handling DNS and TLS.
 
-### Local-first inference
+Infrastructure stack:
 
-Local models are attempted first to reduce cost and latency.
+Component	Technology
+Compute	AWS EC2
+Containers	Docker
+Reverse Proxy	Nginx
+Domain & TLS	Cloudflare
+Database	SQLite
+Scraping	Playwright
+Vector Search	FAISS
 
+Architecture:
+```bash
+Cloudflare
+     │
+     ▼
+   Nginx
+     │
+     ├── jobpulse-ui container (Streamlit)
+     │
+     └── jobpulse-api container (FastAPI)
+           │
+           ├── scraping pipeline
+           ├── LLM extraction
+           └── vector index builder
 ```
-local model → qc gate → api fallback
-```
+- The scraping and embedding pipelines run **inside the API container** via scheduled tasks.
 
-**Benefits**
+  ------
 
-- lower API costs  
-- faster experimentation  
-- offline capability  
+  # ⏱ Automated Data Pipeline
 
----
+  JobPulse maintains an **automatically updating job dataset**.
 
-### Provider abstraction
+  Every update cycle performs:
 
-LLM providers are accessed through a unified interface.
+  ```
+  scrape new jobs
+  → update SQLite database
+  → generate embeddings
+  → rebuild vector index
+  ```
 
-Supported providers:
+  This ensures semantic search and analytics operate on **fresh job market data**.
+  - # 🔁 Data Pipeline Components
 
-| Provider | Example Model |
-|--------|--------|
-| OpenAI | gpt-4o-mini |
-| NVIDIA NIM | kimi-k2 |
-| Local HF | Qwen + LoRA |
+  ## 1️⃣ Scrape Job Postings
 
----
+  Script:
 
-### Strict structured outputs
+  ```
+  scripts/run_pipeline.py
+  ```
 
-Extraction must conform to a defined schema before downstream tasks execute.
+  Responsibilities:
 
-**Structured schema example**
+  - crawl job listing pages
+  - detect new postings
+  - extract job descriptions
+  - persist data into SQLite
 
-```
-role_title
-company
-location
-requirements
-responsibilities
-skills
-years_experience_min
-```
+  Output:
 
----
+  ```
+  data/db/jobs.db
+  data/artifacts/scrape/<run_id>/
+  ```
 
-### Artifact-based observability
+  Artifacts include:
 
-Each pipeline run produces artifacts that enable debugging without rerunning the system.
+  ```
+  run_summary.json
+  trace.json
+  config.json
+  ```
 
----
+  ------
 
-# 📊 Artifacts & Observability
+  ## 2️⃣ Build Vector Index
 
-Artifacts are separated by subsystem.
+  Script:
 
-```
-data/artifacts/
-  scrape/<run_id>/        # scraping pipeline runs
-  mcp/<job_id>/           # MCP tool chain runs
-  langgraph/<run_id>/     # LangGraph orchestration runs
-```
+  ```
+  scripts/build_vector_index.py
+  ```
 
-Each run produces:
+  Responsibilities:
 
-```
-structured.json
-qc.json
-report.md
-trace.json
-run_summary.json
-config.json
-```
+  - encode job descriptions using embedding models
+  - build FAISS vector index
+  - persist vector search store
 
-Example:
+  Output:
 
-```
-data/artifacts/langgraph/64cca8f519/10704289/
-```
+  ```
+  data/vectors/
+  ```
 
----
+  ------
 
-## Trace Logging
+  ## 3️⃣ Pipeline Orchestration
 
-`trace.json` records step-level execution events.
+  Script:
 
-Example execution path:
+  ```
+  scripts/daily_update.py
+  ```
 
-```
-fetch_jd
- → extract_local
- → qc_validate
- → fallback_to_api
- → generate_report_api
-```
+  This script runs the full update sequence:
 
-Each trace event records:
+  ```
+  run_pipeline.py
+  → build_vector_index.py
+  ```
 
-- timestamp  
-- step name  
-- execution status  
-- latency  
-- fallback reason  
+  This file acts as the **entry point for automated data refresh**.
 
----
+  ------
 
-## Run Summary
+  # 🤖 Scheduled Updates (Cron)
 
-`run_summary.json` aggregates run-level metrics.
+  The system refreshes job data automatically using **cron + Docker execution**.
 
-Example:
+  Update frequency:
 
-```json
-{
-  "run_id": "64cca8f519",
-  "route": "local_then_api",
-  "qc_status": "pass",
-  "elapsed_sec": 12.3,
-  "node_ms": {
-    "fetch_jd": 210,
-    "extract_local": 1200,
-    "extract_api": 850,
-    "qc_validate": 35
-  }
-}
-```
+  ```
+  every 6 hours
+  ```
 
-This design enables **post-mortem debugging and reliability analysis**.
+  Cron job example:
 
----
+  ```
+  0 */6 * * * flock -n /tmp/jobpulse_daily_update.lock \
+  docker exec jobpulse-api sh -lc 'cd /app && python scripts/daily_update.py' \
+  >> /home/ubuntu/jobpulse_logs/daily_update.log 2>&1
+  ```
 
+  Key features:
+
+  - prevents overlapping executions (`flock`)
+  - runs pipeline inside Docker container
+  - writes logs to persistent files
+
+  ------
+
+  ## Playwright Execution in Server Environment
+
+  Because Playwright requires a display server, scraping runs using **Xvfb virtual display**:
+
+  ```
+  xvfb-run -a python scripts/run_pipeline.py --headed
+  ```
+
+  This enables reliable browser automation on headless servers.
+
+  ------
+
+  # 📊 Artifacts & Observability
+
+  Each pipeline run produces artifacts for debugging and traceability.
+
+  Directory structure:
+
+  ```
+  data/artifacts/
+  
+    scrape/<run_id>/
+    mcp/<job_id>/
+    langgraph/<run_id>/
+  ```
+
+  Artifacts include:
+
+  ```
+  structured.json
+  qc.json
+  trace.json
+  report.md
+  run_summary.json
+  config.json
+  ```
+
+  ------
+
+  # 📊 Vector Search
+
+  JobPulse supports **semantic job retrieval** using embeddings.
+
+  Pipeline:
+
+  ```
+  job descriptions
+  → embedding model
+  → FAISS index
+  → similarity search
+  ```
+
+  Vector storage:
+
+  ```
+  data/vectors/
+  ```
+
+  The vector index is rebuilt after each scraping cycle to ensure consistency.
+
+  Future versions will support **incremental embedding updates**.
+  
 # 📂 Repository Structure
+```bash
+.
+├── README.md
+├── data
+│   ├── artifacts
+│   │   ├── langgraph
+│   │   │   └── ebbe0a0156
+│   │   │       └── 10704289
+│   │   │           ├── extract_meta.json
+│   │   │           ├── qc.json
+│   │   │           ├── report.md
+│   │   │           ├── report_meta.json
+│   │   │           ├── run_summary.json
+│   │   │           ├── structured.json
+│   │   │           └── trace.json
+│   │   ├── mcp
+│   │   │   └── 10704289
+│   │   │       ├── extract_api_meta.json
+│   │   │       ├── fetch.json
+│   │   │       ├── qc_api.json
+│   │   │       ├── report.md
+│   │   │       ├── report_meta.json
+│   │   │       ├── run_one_config.json
+│   │   │       ├── run_one_summary.json
+│   │   │       ├── structured_api.json
+│   │   │       └── trace.json
+│   │   └── scrape
+│   │       └── 252b0c5be9
+│   │           ├── bad_samples
+│   │           ├── config.json
+│   │           ├── fail_samples
+│   │           └── run_summary.json
+│   ├── auth_state.json
+│   ├── db
+│   │   ├── jobs.db
+│   ├── raw
+│   │   ├── jd_raw
+│   │   └── jd_txt
+│   └── vectors
+│       ├── build_summary.json
+│       ├── job_meta.jsonl
+│       ├── jobs.faiss
+│       ├── meta.jsonl
+│       └── refresh_summary.json
+├── docker
+│   ├── Dockerfile.api
+│   └── Dockerfile.ui
+├── docs
+│   ├── metrics_scraper.md
+│   ├── reliability_statement_scraper.md
+│   ├── runbook_scraper.md
+│   └── system_design_scraper.md
+├── infra
+│   ├── aws
+│   ├── docker-compose.dev.yml
+│   └── docker-compose.yml
+├── pyproject.toml
+├── scripts
+│   ├── LLM_extract_by_prompt.py
+│   ├── build_sft_dataset.py
+│   ├── build_vector_index.py
+│   ├── daily_update.py
+│   ├── debug_job_search_page.py
+│   ├── discover_selectors.py
+│   ├── eval_base.py
+│   ├── eval_by_lora.py
+│   ├── eval_by_prompt.py
+│   ├── eval_val_split.py
+│   ├── export_jobs_from_db.py
+│   ├── login.py
+│   ├── refresh_embeddings.py
+│   ├── run_api.py
+│   ├── run_graph_one.py
+│   ├── run_one_job_mcp.py
+│   ├── run_pipeline.py
+│   ├── run_ui.py
+│   ├── smoke_baseline_extract.py
+│   ├── smoke_collect_job_links.py
+│   ├── smoke_detail_structured.py
+│   ├── smoke_new_hf_lora.py
+│   ├── smoke_new_hf_plain.py
+│   ├── smoke_open.py
+│   ├── smoke_scrape_first_job.py
+│   ├── smoke_scrape_job_detail.py
+│   ├── structure_jobs_local.py
+│   └── test_vector_search.py
+├── src
+│   ├── __init__.py
+│   ├── analyze.py
+│   ├── api
+│   │   ├── __init__.py
+│   │   ├── main.py
+│   │   └── schemas.py
+│   ├── auth.py
+│   ├── config.py
+│   ├── connectors
+│   │   ├── base.py
+│   │   ├── greenhouse.py
+│   │   ├── handshake.py
+│   │   └── indeed.py
+│   ├── db.py
+│   ├── eval
+│   │   └── extraction_metrics.py
+│   ├── extract.py
+│   ├── extractors
+│   │   ├── local_hf.py
+│   │   └── skill_rules.py
+│   ├── llm
+│   │   ├── json_repair.py
+│   │   ├── prompts
+│   │   └── providers
+│   │       ├── base.py
+│   │       ├── hf_chat_lora.py
+│   │       ├── hf_local.py
+│   │       ├── hf_plain.py
+│   │       ├── openai_compat_client.py
+│   │       └── openai_compat_providers.py
+│   ├── mcp_server
+│   │   ├── __init__.py
+│   │   ├── server.py
+│   │   ├── tools_extract.py
+│   │   ├── tools_extract_api.py
+│   │   ├── tools_fetch.py
+│   │   ├── tools_qc.py
+│   │   └── tools_report.py
+│   ├── observability
+│   ├── orch
+│   │   ├── graph.py
+│   │   └── schema.py
+│   ├── report.py
+│   ├── resume
+│   │   └── parse.py
+│   ├── retrieval
+│   │   ├── __init__.py
+│   │   ├── documents.py
+│   │   ├── embed.py
+│   │   ├── faiss_index.py
+│   │   ├── resume_match.py
+│   │   └── search.py
+│   ├── schedulers
+│   ├── schemas
+│   │   ├── __init__.py
+│   │   ├── job_extract.py
+│   │   └── job_schema.py
+│   ├── scrape
+│   │   ├── __init__.py
+│   │   ├── detail.py
+│   │   └── list.py
+│   ├── services
+│   ├── storage
+│   ├── text_clean
+│   │   └── jd_clean.py
+│   ├── training
+│   │   ├── datasets
+│   │   │   ├── jd_struct_gold_template.jsonl
+│   │   │   ├── jd_struct_train.jsonl
+│   │   │   └── jd_struct_val.jsonl
+│   │   └── train_lora.py
+│   └── ui
+│       ├── api_client.py
+│       ├── app.py
+│       ├── components.py
+│       ├── state.py
+│       └── views
+│           ├── __init__.py
+│           ├── analytics.py
+│           ├── overview.py
+│           ├── pipeline.py
+│           ├── resume_match.py
+│           └── search.py
+└── uv.lock
 
 ```
-data/
-  artifacts/                # runtime artifacts
-
-scripts/
-  run_pipeline.py           # scraping pipeline
-  run_one_job_mcp.py        # MCP tool chain runner
-  run_graph_one.py          # LangGraph orchestration runner
-
-src/
-
-  connectors/               # scraping adapters
-
-  llm/
-    providers/              # API + HF inference abstraction
-    json_repair.py          # robust JSON parsing
-
-  mcp_server/
-    server.py               # MCP tool server
-    tools_*.py              # tool implementations
-
-  orch/
-    graph.py                # LangGraph workflow
-    schema.py               # structured state contracts
-
-  training/
-    train_lora.py           # LoRA fine-tuning pipeline
-
-  db.py                     # SQLite persistence
-  report.py                 # markdown report generation
-
-models/
-  qwen2.5-0.5b-jd-lora/     # trained LoRA adapters
-```
-
----
-
 # ⚙️ Environment Setup
 
 ## Install dependencies
 
-Project uses **uv** for dependency management. You can install **uv** from [uv installation](https://docs.astral.sh/uv/getting-started/installation/)
+Project uses **uv** for dependency management.
 
 ```
 uv sync
 ```
 
----
+------
 
 ## Install Playwright browsers
 
@@ -255,9 +475,9 @@ python -m playwright install --with-deps
 
 Without this step scraping will fail.
 
----
+------
 
-## Set API keys (optional)
+## Optional API keys
 
 ```
 export OPENAI_API_KEY=your_key
@@ -266,7 +486,7 @@ export NVIDIA_API_KEY=your_key
 
 Local-only workflows do not require API keys.
 
----
+------
 
 # 🚀 Typical Workflow
 
@@ -276,16 +496,17 @@ Local-only workflows do not require API keys.
 uv run python scripts/run_pipeline.py --pages 1 --limit 10
 ```
 
-Outputs:
+------
+
+## 2️⃣ Build Vector Index
 
 ```
-data/db/jobs.db
-data/artifacts/scrape/<run_id>/
+uv run python scripts/build_vector_index.py
 ```
 
----
+------
 
-## 2️⃣ Run MCP Tool Chain
+## 3️⃣ Run MCP Tool Chain
 
 ```
 uv run python scripts/run_one_job_mcp.py \
@@ -293,15 +514,9 @@ uv run python scripts/run_one_job_mcp.py \
   --provider openai
 ```
 
-Artifacts:
+------
 
-```
-data/artifacts/mcp/<job_id>/
-```
-
----
-
-## 3️⃣ Run LangGraph Orchestration
+## 4️⃣ Run LangGraph Orchestration
 
 ```
 uv run python scripts/run_graph_one.py \
@@ -312,13 +527,7 @@ uv run python scripts/run_graph_one.py \
   --report-provider openai
 ```
 
-Artifacts:
-
-```
-data/artifacts/langgraph/<run_id>/<job_id>/
-```
-
----
+------
 
 # 🧠 LoRA Fine-Tuning
 
@@ -332,8 +541,6 @@ src/training/datasets/
   jd_struct_val.jsonl
 ```
 
-Generated using teacher-model supervision.
-
 Train:
 
 ```
@@ -346,90 +553,44 @@ Output:
 models/qwen2.5-0.5b-jd-lora/
 ```
 
----
-
-# 📄 Example Skill-Gap Report
-
-Example output:
-
-```
-### Role: Machine Learning Engineer
-
-Required Skills
-- Python
-- PyTorch
-- Distributed Training
-- Data Pipelines
-
-Candidate Skill Gap
-- Distributed Training
-- MLOps Infrastructure
-
-Suggested Learning Focus
-- Ray / Spark distributed systems
-- Model deployment pipelines
-```
-
----
-
-# 🛠 MCP Tool Server
-
-Start manually:
-
-```
-python -m src.mcp_server.server
-```
-
-Available tools:
-
-```
-fetch_jd
-extract_local
-extract_api
-qc_validate
-generate_report_api
-```
-
-This allows integration with agents, orchestration frameworks, or external pipelines.
-
----
+------
 
 # 🛡 Reliability Strategy
 
 JobPulse implements reliability patterns commonly used in production LLM systems.
 
-## Local-First Extraction
+### Local-First Inference
 
 ```
-local → qc_fail → api → qc_pass → report
+local model
+→ qc validation
+→ api fallback
 ```
 
----
+------
 
-## QC Validation Gate
+### QC Validation Gate
 
 Extraction must pass validation before report generation.
 
 Checks include:
 
-- required fields present  
-- non-empty critical fields  
-- JSON integrity  
+- required fields present
+- non-empty critical fields
+- JSON integrity
 
----
+------
 
-## JSON Hardening
+### JSON Hardening
 
 LLM outputs are sanitized using:
 
-- code fence stripping  
-- bracket repair  
-- JSON tail extraction  
-- balanced truncation  
+- code fence stripping
+- bracket repair
+- JSON tail extraction
+- balanced truncation
 
-This significantly reduces malformed output failures.
-
----
+------
 
 # 🧩 Tech Stack
 
@@ -442,9 +603,13 @@ Core technologies:
 - LangGraph
 - MCP
 - Playwright
+- FAISS
 - SQLite
+- Docker
+- Nginx
+- Cloudflare
 
----
+------
 
 # 🎯 Engineering Highlights
 
@@ -457,34 +622,21 @@ This project demonstrates:
 - artifact-based observability
 - LangGraph orchestration
 - LoRA fine-tuning workflows
-- MCP tool interface design
+- semantic vector search
+- automated data pipelines
+- Docker-based deployment
 
-The architecture mirrors patterns used in modern AI infrastructure systems.
+These patterns closely resemble **modern AI infrastructure systems used in production**.
 
----
+------
 
 # 🔮 Future Improvements
 
-Planned extensions include:
+Planned extensions:
 
-- batch graph runner for large datasets
-- structured extraction evaluation dashboard
-- resume ingestion + skill-gap matching
-- asynchronous scraping pipeline
-- Dockerized deployment
-- monitoring and metrics layer
-
----
-
-# ⭐ Project Focus
-
-This repository focuses on **LLM systems engineering**, not just prompt usage.
-
-Key themes include:
-
-- reliability
-- reproducibility
-- observability
-- orchestration
-
-These are critical capabilities for building real-world AI applications.
+- incremental embedding refresh
+- resume ingestion + skill matching
+- job market analytics dashboard
+- distributed scraping workers
+- monitoring & metrics layer
+- RAG-powered job market assistant

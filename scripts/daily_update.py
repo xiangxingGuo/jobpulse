@@ -12,8 +12,8 @@ def main() -> None:
     run([
         "xvfb-run", "-a",
         sys.executable, "scripts/run_pipeline.py",
-        "--pages", "1",
-        "--limit", "20",
+        "--pages", "4",
+        "--limit", "100",
         "--headed",
     ])
     run([sys.executable, "scripts/build_vector_index.py"])
