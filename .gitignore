@@ -45,3 +45,4 @@ data/raw/jd_txt/**
 !data/artifacts/demo/
 !data/artifacts/demo/**
 data/vectors/*
+data/artifacts/scrape/**

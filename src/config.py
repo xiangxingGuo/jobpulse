@@ -33,7 +33,7 @@ class ScrapeConfig:
     headless: bool = _env_bool("HEADLESS", False)
 
     # Scope
-    pages: int = _env_int("PAGES", 10)
+    pages: int = _env_int("PAGES", 1)
     per_page: int = _env_int("PER_PAGE", 25)
     limit: int = _env_int("LIMIT", 100)
 
