@@ -1,15 +1,14 @@
 from __future__ import annotations
 
-import os
 import time
 from typing import Any, Dict, Literal, Optional, TypedDict
 
 from langgraph.graph import StateGraph, END
 
-from mcp import ClientSession, StdioServerParameters
-from mcp.client.stdio import stdio_client
-import json
-from pathlib import Path
+from src.services.job_fetch_service import JobFetchService
+from src.services.extraction_service import ExtractionService
+from src.services.qc_service import QCService
+from src.services.report_service import ReportService
 
 # Path("data/artifacts/_debug").mkdir(parents=True, exist_ok=True)
 
@@ -74,244 +73,234 @@ def _tool_result_text(res: Any) -> str:
     return "".join(parts)
 
 
-def _tool_result_json(res: Any, tool_name: str) -> Any:
-    if getattr(res, "is_error", False):
-        raise RuntimeError(f"Tool {tool_name} failed: {_tool_result_text(res).strip()}")
-    txt = _tool_result_text(res).strip()
-    if not txt:
-        raise RuntimeError(f"Tool {tool_name} returned empty content")
-    import json
-    return json.loads(txt)
-
-
-async def _call_tool_once(tool_name: str, args: Dict[str, Any]) -> Any:
-    """
-    Short-lived MCP stdio connection: open -> initialize -> call_tool -> close.
-    This avoids cross-task cancel-scope issues with LangGraph async runner.
-    """
-    server_params = StdioServerParameters(
-        command="python",
-        args=["-m", "src.mcp_server.server"],
-        env=dict(os.environ),
-    )
-
-    async with stdio_client(server_params) as (read, write):
-        async with ClientSession(read, write) as session:
-            await session.initialize()
-            return await session.call_tool(tool_name, args)
-
-
-async def _ensure_session(state: GraphState) -> ClientSession:
-    if state.get("_mcp_session") is not None:
-        return state["_mcp_session"]  # type: ignore
-
-    server_params = StdioServerParameters(
-        command="python",
-        args=["-m", "src.mcp_server.server"],
-        env=dict(os.environ),
-    )
-
-    # create a live session and store it in state
-    read, write = await stdio_client(server_params).__aenter__()  # type: ignore
-    session_cm = ClientSession(read, write)
-    session = await session_cm.__aenter__()  # type: ignore
-    await session.initialize()
-
-    # also store context managers so we can close later
-    state["_mcp_session"] = session
-    state["_mcp_session_cm"] = session_cm
-    state["_mcp_stdio_cm"] = stdio_client(server_params)
-
-    return session
-
-
-async def _close_session(state: GraphState) -> None:
-    # best-effort close
-    try:
-        sess_cm = state.get("_mcp_session_cm")
-        if sess_cm:
-            await sess_cm.__aexit__(None, None, None)  # type: ignore
-    except Exception:
-        pass
-    try:
-        stdio_cm = state.get("_mcp_stdio_cm")
-        if stdio_cm:
-            await stdio_cm.__aexit__(None, None, None)  # type: ignore
-    except Exception:
-        pass
-
 
 # -----------------------
 # Nodes
 # -----------------------
 
 async def node_fetch_jd(state: GraphState) -> GraphState:
-    t0 = time.time()
-    _trace(state, "fetch_jd", "start")
-    # session = await _ensure_session(state)
-    res = await _call_tool_once("fetch_jd", {"job_id": state["job_id"], "source": state.get("source", "handshake")})
-    payload = _tool_result_json(res, "fetch_jd")
+    started = time.perf_counter()
+
+    job_id = state["job_id"]
+    source = state.get("source", "handshake")
+
+    svc = JobFetchService()
+    result = await svc.fetch(job_id=job_id, source=source)
+    payload = result.to_dict()
+
     state["jd_text"] = payload["jd_text"]
-    
-    dt = int((time.time() - t0) * 1000)
-    state["metrics"]["node_ms"]["fetch_jd"] = dt
-    _trace(state, "fetch_jd", "ok", jd_len=len(state["jd_text"]), elapsed_ms=dt)
+
+    trace = list(state.get("trace", []))
+    trace.append(
+        {
+            "node": "fetch_jd",
+            "ok": True,
+            "source": source,
+            "job_id": job_id,
+            "jd_len": len(payload["jd_text"]),
+            "meta": payload.get("meta") or {},
+        }
+    )
+    state["trace"] = trace
+
+    metrics = dict(state.get("metrics", {}))
+    node_ms = dict(metrics.get("node_ms", {}))
+    node_ms["fetch_jd"] = round((time.perf_counter() - started) * 1000, 2)
+    metrics["node_ms"] = node_ms
+    state["metrics"] = metrics
+
     return state
 
 
 async def node_extract_local(state: GraphState) -> GraphState:
-    t0 = time.time()
-    _trace(state, "extract_local", "start")
-    args: Dict[str, Any] = {
-        "job_id": state["job_id"],
-        "jd_text": state["jd_text"],
-        "prompt_name": state.get("prompt_name", "jd_extract_v2"),
-        "model": state.get("local_model", "Qwen/Qwen2.5-0.5B-Instruct"),
-        "lora_path": state.get("local_lora_path"),
-        "mode": state.get("local_mode", "chat_lora"),
-    }
+    started = time.perf_counter()
 
-    try:
-        res = await _call_tool_once("extract_local", args)
+    jd_text = state["jd_text"]
+    job_id = state["job_id"]
 
-        # Path(f"data/artifacts/_debug/extract_local_res_{state['job_id']}.txt").write_text(repr(res), encoding="utf-8")
+    svc = ExtractionService()
 
+    result = await svc.extract_local(
+        job_id=job_id,
+        jd_text=jd_text,
+        prompt_name=state.get("prompt_name", "jd_extract_v2"),
+        model=state.get("local_model"),
+        lora_path=state.get("local_lora_path"),
+        mode=state.get("local_mode", "plain"),
+        temperature=state.get("temperature", 0.0),
+        max_tokens=state.get("max_tokens", 1024),
+    )
 
-        # If tool itself errored, treat as local failure (do not crash graph)
-        if getattr(res, "is_error", False):
-            err = _tool_result_text(res).strip() or "unknown tool error"
-            state["structured"] = None
-            state["extract_meta"] = {
-                "parse_ok": False,
-                "parse_repaired": False,
-                "extractor": {"mode": args["mode"], "model": args["model"], "lora_path": args.get("lora_path")},
-                "error": f"tool_error: {err}",
-            }
-            _trace(state, "extract_local", "fail", error=err)
-            return state
+    payload = result.to_dict()
 
-        txt = _tool_result_text(res).strip()
-        if not txt:
-            state["structured"] = None
-            state["extract_meta"] = {
-                "parse_ok": False,
-                "parse_repaired": False,
-                "extractor": {"mode": args["mode"], "model": args["model"], "lora_path": args.get("lora_path")},
-                "error": "empty_tool_content",
-            }
-            _trace(state, "extract_local", "fail", error="empty_tool_content")
-            return state
+    state["structured"] = payload["structured"]
+    state["raw_output"] = payload["raw_output"]
+    state["parse_ok"] = payload["parse_ok"]
+    state["parse_repaired"] = payload["parse_repaired"]
+    state["extract_meta"] = payload["extractor"]
 
-        import json
-        payload = json.loads(txt)
-
-        state["structured"] = payload.get("structured")
-        state["extract_meta"] = {k: payload.get(k) for k in ["parse_ok", "parse_repaired", "extractor", "usage"]}
-        dt = int((time.time() - t0) * 1000)
-        state["metrics"]["node_ms"]["extract_local"] = dt
-        _trace(state, "extract_local", "ok", parse_ok=payload.get("parse_ok"), elapsed_ms=dt)
-        return state
-
-    except Exception as e:
-        # JSON decode errors and any unexpected errors land here
-        state["structured"] = None
-        state["extract_meta"] = {
-            "parse_ok": False,
-            "parse_repaired": False,
-            "extractor": {"mode": args["mode"], "model": args["model"], "lora_path": args.get("lora_path")},
-            "error": str(e),
+    trace = list(state.get("trace", []))
+    trace.append(
+        {
+            "node": "extract_local",
+            "ok": payload["parse_ok"],
+            "parse_repaired": payload["parse_repaired"],
+            "extractor": payload["extractor"],
         }
-        dt = int((time.time() - t0) * 1000)
-        state["metrics"]["node_ms"]["extract_local"] = dt
-        _trace(state, "extract_local", "fail", error=str(e), elapsed_ms=dt)
-        return state
+    )
+    state["trace"] = trace
 
+    metrics = dict(state.get("metrics", {}))
+    node_ms = dict(metrics.get("node_ms", {}))
+    node_ms["extract_local"] = round((time.perf_counter() - started) * 1000, 2)
+    metrics["node_ms"] = node_ms
+    state["metrics"] = metrics
 
-async def node_extract_api(state: GraphState) -> GraphState:
-    t0 = time.time()
-    _trace(state, "extract_api", "start", provider=state.get("extract_provider"))
-    # session = await _ensure_session(state)
-
-    provider = state.get("extract_provider", "openai")
-    model = state.get("extract_model")
-
-    args: Dict[str, Any] = {
-        "job_id": state["job_id"],
-        "jd_text": state["jd_text"],
-        "prompt_name": state.get("prompt_name", "jd_extract_v2"),
-        "provider": provider,
-        "temperature": 0.0,
-        "max_tokens": 1200,
-    }
-    if model:
-        args["model"] = model
-    # if provider == "nvidia": args["thinking"] = "disabled"  # only if you kept this param in tool
-
-    res = await _call_tool_once("extract_api", args)
-    payload = _tool_result_json(res, "extract_api")
-
-    state["structured"] = payload.get("structured")
-    state["extract_meta"] = {k: payload.get(k) for k in ["parse_ok", "parse_repaired", "usage", "extractor"]}
-    dt = int((time.time() - t0) * 1000)
-    state["metrics"]["node_ms"]["extract_api"] = dt
-    _trace(state, "extract_api", "ok", parse_ok=payload.get("parse_ok"), elapsed_ms=dt)
     return state
 
 
+async def node_extract_api(state: GraphState) -> GraphState:
+    started = time.perf_counter()
+    provider = state.get("extract_provider", "openai")
+
+    _trace(state, "extract_api", "start", provider=provider)
+
+    try:
+        svc = ExtractionService()
+        result = await svc.extract_api(
+            job_id=state["job_id"],
+            jd_text=state["jd_text"],
+            prompt_name=state.get("prompt_name", "jd_extract_v2"),
+            provider=provider,
+            model=state.get("extract_model"),
+            temperature=0.0,
+            max_tokens=1200,
+        )
+
+        payload = result.to_dict()
+
+        state["structured"] = payload.get("structured")
+        state["raw_output"] = payload.get("raw_output")
+        state["parse_ok"] = payload.get("parse_ok")
+        state["parse_repaired"] = payload.get("parse_repaired")
+        state["extract_meta"] = {
+            k: payload.get(k) for k in ["parse_ok", "parse_repaired", "usage", "extractor"]
+        }
+
+        dt = int((time.perf_counter() - started) * 1000)
+        state["metrics"]["node_ms"]["extract_api"] = dt
+        _trace(
+            state,
+            "extract_api",
+            "ok",
+            parse_ok=payload.get("parse_ok"),
+            parse_repaired=payload.get("parse_repaired"),
+            elapsed_ms=dt,
+        )
+        return state
+
+    except Exception as e:
+        state["structured"] = None
+        state["raw_output"] = ""
+        state["parse_ok"] = False
+        state["parse_repaired"] = False
+        state["extract_meta"] = {
+            "parse_ok": False,
+            "parse_repaired": False,
+            "extractor": {
+                "provider": provider,
+                "model": state.get("extract_model"),
+            },
+            "error": str(e),
+        }
+
+        dt = int((time.perf_counter() - started) * 1000)
+        state["metrics"]["node_ms"]["extract_api"] = dt
+        _trace(state, "extract_api", "fail", error=str(e), elapsed_ms=dt)
+        return state
+
+
 async def node_qc(state: GraphState) -> GraphState:
-    t0 = time.time()
-    _trace(state, "qc_validate", "start")
-    # session = await _ensure_session(state)
-    args = {
-        "job_id": state["job_id"],
-        "structured": state.get("structured"),
-        "parse_ok": bool(state.get("extract_meta", {}).get("parse_ok", state.get("structured") is not None)),
-        "parse_repaired": bool(state.get("extract_meta", {}).get("parse_repaired", False)),
-        "extractor": state.get("extract_meta", {}).get("extractor", {}),
-        "require_keys": ["role_title", "company", "requirements", "responsibilities"],
-        "require_non_empty_any_of": [["requirements", "responsibilities"]],
-    }
-    res = await _call_tool_once("qc_validate", args)
-    payload = _tool_result_json(res, "qc_validate")
+    started = time.perf_counter()
+
+    svc = QCService()
+
+    qc_result = await svc.validate(
+        job_id=state["job_id"],
+        structured=state.get("structured"),
+        parse_ok=bool(state.get("parse_ok")),
+        parse_repaired=bool(state.get("parse_repaired")),
+        extractor=(state.get("extract_meta") or {}).get("extractor"),
+        require_keys=state.get("require_keys", []),
+        require_non_empty_any_of=state.get("require_non_empty_any_of", []),
+    )
+
+    payload = qc_result.to_dict()
     state["qc"] = payload
-    dt = int((time.time() - t0) * 1000)
-    state["metrics"]["node_ms"]["qc_validate"] = dt
-    _trace(state, "qc_validate", "ok", qc=payload.get("status"), issues=payload.get("issues"), elapsed_ms=dt)
+
+    trace = list(state.get("trace", []))
+    trace.append(
+        {
+            "node": "qc",
+            "ok": payload["ok"],
+            "status": payload["status"],
+            "reasons": payload["reasons"],
+        }
+    )
+    state["trace"] = trace
+
+    metrics = dict(state.get("metrics", {}))
+    node_ms = dict(metrics.get("node_ms", {}))
+    node_ms["qc"] = round((time.perf_counter() - started) * 1000, 2)
+    metrics["node_ms"] = node_ms
+    state["metrics"] = metrics
+
     return state
 
 
 async def node_report(state: GraphState) -> GraphState:
-    t0 = time.time()
-    _trace(state, "generate_report_api", "start", provider=state.get("report_provider"))
-    # session = await _ensure_session(state)
+    started = time.perf_counter()
 
-    provider = state.get("report_provider", "openai")
-    model = state.get("report_model")
+    svc = ReportService()
 
-    args: Dict[str, Any] = {
-        "job_id": state["job_id"],
-        "structured": state["structured"],
-        "qc": state["qc"],
-        "match": None,
-        "resume_text": state.get("resume_text"),
-        "provider": provider,
-        "temperature": 0.2,
-        "max_tokens": 900,
+    result = await svc.generate(
+        job_id=state["job_id"],
+        structured=state.get("structured") or {},
+        qc=state.get("qc") or {},
+        match=None,
+        resume_text=state.get("resume_text"),
+        provider=state.get("report_provider", "openai"),
+        model=state.get("report_model"),
+        temperature=0.2,
+        max_tokens=900,
+    )
+
+    payload = result.to_dict()
+
+    state["report_md"] = payload["report_md"]
+    state["report_meta"] = {
+        "meta": payload.get("meta") or {},
+        "usage": payload.get("usage") or {},
     }
-    if model:
-        args["model"] = model
-    # if provider == "nvidia": args["thinking"] = "disabled"  # only if supported
 
-    res = await _call_tool_once("generate_report_api", args)
-    payload = _tool_result_json(res, "generate_report_api")
+    trace = list(state.get("trace", []))
+    trace.append(
+        {
+            "node": "report",
+            "ok": bool(payload["report_md"].strip()),
+            "provider": state.get("report_provider", "openai"),
+            "model": state.get("report_model"),
+        }
+    )
+    state["trace"] = trace
 
-    state["report_md"] = payload.get("report_md")
-    state["report_meta"] = {k: payload.get(k) for k in ["usage", "meta"]}
-    dt = int((time.time() - t0) * 1000)
-    state["metrics"]["node_ms"]["generate_report_api"] = dt
-    _trace(state, "generate_report_api", "ok", tokens=state["report_meta"].get("usage", {}).get("total_tokens"), elapsed_ms=dt)
+    metrics = dict(state.get("metrics", {}))
+    node_ms = dict(metrics.get("node_ms", {}))
+    node_ms["report"] = round((time.perf_counter() - started) * 1000, 2)
+    metrics["node_ms"] = node_ms
+    state["metrics"] = metrics
+
     return state
-
 
 async def node_finalize(state: GraphState) -> GraphState:
     _trace(state, "finalize", "ok")
@@ -354,7 +343,11 @@ def route_after_qc(state: GraphState) -> str:
     })
     return "extract_api"
 
+"""
+LangGraph is the primary runtime orchestrator for JobPulse.
 
+This graph calls core services directly and does not depend on MCP tool execution.
+"""
 
 def build_graph() -> Any:
     g = StateGraph(GraphState)

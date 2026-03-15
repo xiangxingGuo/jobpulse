@@ -1,0 +1,27 @@
+{
+  "parse_ok": true,
+  "parse_repaired": false,
+  "usage": {
+    "prompt_tokens": 2152,
+    "completion_tokens": 347,
+    "total_tokens": 2499,
+    "prompt_tokens_details": {
+      "cached_tokens": 0,
+      "audio_tokens": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 0,
+      "audio_tokens": 0,
+      "accepted_prediction_tokens": 0,
+      "rejected_prediction_tokens": 0
+    }
+  },
+  "extractor": {
+    "provider": "openai",
+    "model": "gpt-4o-mini",
+    "temperature": 0.0,
+    "max_tokens": 1200,
+    "thinking": "disabled",
+    "base_url": "https://api.openai.com"
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "run_id": "03f7e69554",
+  "job_id": "10338054",
+  "route": "api_only",
+  "qc_status": "fail",
+  "elapsed_sec": 4.849,
+  "node_ms": {
+    "fetch_jd": 4.23,
+    "extract_api": 7352,
+    "qc": 0.02
+  },
+  "decisions": [
+    {
+      "decision": "qc_fail_after_api",
+      "at": "2026-03-15 12:16:26",
+      "issues": null
+    }
+  ],
+  "slo": {
+    "availability_pass": false
+  }
+}

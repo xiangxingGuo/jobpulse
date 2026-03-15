@@ -1,0 +1,41 @@
+[
+  {
+    "node": "fetch_jd",
+    "ok": true,
+    "source": "handshake",
+    "job_id": "10338054",
+    "jd_len": 5017,
+    "meta": {
+      "source": "handshake",
+      "len": 5017,
+      "md5": "3e9b1561d74f8a466b83b08f832cbb57"
+    }
+  },
+  {
+    "t": "2026-03-15 12:16:21",
+    "step": "extract_api",
+    "status": "start",
+    "provider": "openai"
+  },
+  {
+    "t": "2026-03-15 12:16:26",
+    "step": "extract_api",
+    "status": "ok",
+    "parse_ok": true,
+    "parse_repaired": false,
+    "elapsed_ms": 7352
+  },
+  {
+    "node": "qc",
+    "ok": false,
+    "status": "fail",
+    "reasons": [
+      "parse_not_ok"
+    ]
+  },
+  {
+    "t": "2026-03-15 12:16:26",
+    "step": "finalize",
+    "status": "ok"
+  }
+]

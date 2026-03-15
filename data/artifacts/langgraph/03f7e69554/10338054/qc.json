@@ -1,0 +1,24 @@
+{
+  "ok": false,
+  "status": "fail",
+  "reasons": [
+    "parse_not_ok"
+  ],
+  "checks": {
+    "parse_ok": false,
+    "parse_repaired": false,
+    "has_structured": true,
+    "missing_required_keys": [],
+    "failed_non_empty_groups": [],
+    "job_id": "10338054",
+    "extractor": {
+      "provider": "openai",
+      "model": "gpt-4o-mini",
+      "temperature": 0.0,
+      "max_tokens": 1200,
+      "thinking": "disabled",
+      "base_url": "https://api.openai.com"
+    }
+  },
+  "summary": "parse_not_ok"
+}

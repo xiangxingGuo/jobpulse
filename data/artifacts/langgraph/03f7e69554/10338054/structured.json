@@ -1,0 +1,46 @@
+{
+  "role_title": "Software Engineering Intern, Android (Summer 2026)",
+  "company": "Robinhood",
+  "location": "Menlo Park, CA",
+  "employment_type": "Internship",
+  "remote_policy": "Hybrid",
+  "responsibilities": [
+    "Collaborate with design team on product lifecycle",
+    "Contribute to new features for finance products",
+    "Help shape future of Android platform",
+    "Explore and build innovative Android UI/UX",
+    "Work with Kotlin, RxJava 2, Retrofit/OkHttp",
+    "Build products that change finance views"
+  ],
+  "requirements": [
+    "Currently enrolled in degree-seeking program",
+    "Expected graduation in Winter 2026/Spring 2027",
+    "Solid foundation in software engineering",
+    "Interest in front-end work and product design",
+    "Familiarity with Android components",
+    "Experience with at least one Android app",
+    "Experience with open-source projects",
+    "Familiarity with Kotlin and RxJava 2"
+  ],
+  "preferred_qualifications": [
+    "Graduates by May 2027",
+    "Bachelor's degree",
+    "Master's degree",
+    "Computer Science major"
+  ],
+  "skills": [
+    "Kotlin",
+    "RxJava 2",
+    "Retrofit",
+    "OkHttp",
+    "Dagger 2",
+    "Room",
+    "Android UI",
+    "Android UX",
+    "Open-source projects",
+    "Software engineering"
+  ],
+  "years_experience_min": null,
+  "degree_level": "Bachelor",
+  "visa_sponsorship": "No"
+}
