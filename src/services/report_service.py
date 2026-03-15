@@ -4,7 +4,7 @@ from dataclasses import dataclass, asdict
 from typing import Any, Dict, Optional
 
 from src.llm.providers.openai_compat_client import OpenAICompatClient
-
+from src.llm.providers.openai_compat_providers import PROVIDERS
 
 @dataclass
 class ReportResult:
@@ -48,7 +48,16 @@ class ReportService:
             resume_text=resume_text,
         )
 
-        client = OpenAICompatClient(provider=provider)
+        prov = provider
+        cfg = PROVIDERS[prov]
+        if model is None:
+            model = cfg.default_model
+
+        if not model:
+            raise ValueError(f"No model resolved for provider={provider}")
+        
+        client = OpenAICompatClient(provider=prov)
+
         payload = {
             "model": model,
             "temperature": float(temperature),
@@ -59,8 +68,6 @@ class ReportService:
             ],
         }
 
-        if model is None:
-            payload.pop("model")
 
         resp = await client.chat_completions(payload)
 

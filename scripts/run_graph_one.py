@@ -7,20 +7,15 @@ from pathlib import Path
 from typing import Any, Dict, Optional
 import os
 import uuid, time
-from datetime import datetime, timezone
 
 from src.orch.graph import build_graph
+from src.observability.artifact_writer import JobRunArtifactWriter
 
 ARTIFACTS_DIR = Path(os.getenv("ARTIFACT_DIR", "data/artifacts")) / "langgraph"
 
-def _write_text(path: Path, text: str) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(text or "", encoding="utf-8")
 
-
-def _write_json(path: Path, obj: Any) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(obj, ensure_ascii=False, indent=2), encoding="utf-8")
+def _now() -> str:
+    return time.strftime("%Y-%m-%d %H:%M:%S")
 
 
 async def main_async(args: argparse.Namespace) -> None:
@@ -28,7 +23,10 @@ async def main_async(args: argparse.Namespace) -> None:
     app = build_graph()
     run_id = uuid.uuid4().hex[:10]
 
+    started_at = _now()
+
     state: Dict[str, Any] = {
+        # ---- legacy flat fields (temporary compatibility)
         "job_id": args.job_id,
         "source": args.source,
         "prompt_name": args.prompt_name,
@@ -45,7 +43,46 @@ async def main_async(args: argparse.Namespace) -> None:
         "run_id": run_id,
         "metrics": {"node_ms": {}, "route": None},
         "decisions": [],
-        "ts_start_utc": datetime.now(timezone.utc).isoformat(),
+        "ts_start_utc": started_at,
+
+        # ---- v2 structured state
+        "run": {
+            "run_id": run_id,
+            "workflow": "job_enrichment_v2",
+            "status": "running",
+            "started_at": started_at,
+            "ended_at": None,
+            "route": None,
+            "entrypoint": "langgraph",
+        },
+        "input": {
+            "job_id": args.job_id,
+            "source": args.source,
+            "resume_text": None,
+        },
+        "config_routing": {
+            "primary_mode": "local" if args.local_first else "api",
+            "fallback_mode": "api",
+            "fallback_enabled": True,
+            "local_enabled": bool(args.local_first),
+        },
+        "config_models": {
+            "prompt_name": args.prompt_name,
+            "extract_provider": args.extract_provider,
+            "extract_model": args.extract_model,
+            "report_provider": args.report_provider,
+            "report_model": args.report_model,
+            "local_mode": args.local_mode,
+            "local_model": args.local_model,
+            "local_lora_path": args.local_lora_path,
+        },
+        "qc_policy": {
+            "require_keys": ["role_title", "company", "requirements", "responsibilities"],
+            "require_non_empty_any_of": [["requirements", "responsibilities"]],
+        },
+        "features": {
+            "enable_skill_gap": False,
+        },
     }
 
     out = await app.ainvoke(state)
@@ -54,43 +91,90 @@ async def main_async(args: argparse.Namespace) -> None:
     job_dir.mkdir(parents=True, exist_ok=True)
 
     elapsed = time.time() - t0
-    route = "unknown"
+    run_meta = out.get("run", {}) or {}
+    input_meta = out.get("input", {}) or {}
+    job_meta = out.get("job", {}) or {}
+    route = run_meta.get("route") or "unknown"
     decisions = out.get("decisions", [])
-    if any(d.get("decision") == "fallback_to_api" for d in decisions):
-        route = "local_then_api"
-    elif out.get("extract_meta", {}).get("extractor", {}).get("provider") in ("openai", "nvidia"):
-        route = "api_only"
+
+    extraction_state = out.get("extraction", {}) or {}
+    qc_state = out.get("qc_state", {}) or {}
+    report_state = out.get("report_state", {}) or {}
+
+    legacy_qc = out.get("qc") or {}
+
+    decisions = out.get("decisions", [])
+
+    selected_qc_idx = qc_state.get("selected_attempt")
+    qc_attempts = qc_state.get("attempts", [])
+
+    selected_qc = {}
+    if isinstance(selected_qc_idx, int) and 0 <= selected_qc_idx < len(qc_attempts):
+        selected_qc = qc_attempts[selected_qc_idx]
+    elif qc_attempts:
+        selected_qc = qc_attempts[-1]
     else:
-        route = "local_only"
+        selected_qc = legacy_qc
+
+    qc_status = selected_qc.get("status")
 
     summary = {
-        "run_id": run_id,
-        "job_id": args.job_id,
+        "run_id": run_meta.get("run_id", run_id),
+        "job_id": (input_meta or {}).get("job_id", args.job_id),
+        "workflow": run_meta.get("workflow", "job_enrichment_v2"),
+        "status": run_meta.get("status", "completed"),
         "route": route,
-        "qc_status": (out.get("qc") or {}).get("status"),
+        "started_at": run_meta.get("started_at"),
+        "ended_at": run_meta.get("ended_at"),
         "elapsed_sec": round(elapsed, 3),
+
+        "qc_status": qc_status,
+        "extraction_attempt_count": len(extraction_state.get("attempts", [])),
+        "qc_attempt_count": len(qc_state.get("attempts", [])),
+
         "node_ms": out.get("metrics", {}).get("node_ms", {}),
         "decisions": decisions,
+
         "slo": {
-            "availability_pass": (out.get("qc") or {}).get("status") == "pass"
+            "availability_pass": qc_status == "pass"
         }
     }
 
-    # (job_dir / "run_summary.json").write_text(
-    #     json.dumps(summary, indent=2),
-    #     encoding="utf-8"
-    # )
-    _write_json(job_dir / "run_summary.json", summary)
+    selected_extract_idx = extraction_state.get("selected_attempt")
+    extract_attempts = extraction_state.get("attempts", [])
 
-    _write_text(job_dir / "jd.txt", out.get("jd_text", ""))
-    _write_json(job_dir / "structured.json", out.get("structured"))
-    _write_json(job_dir / "extract_meta.json", out.get("extract_meta", {}))
-    _write_json(job_dir / "qc.json", out.get("qc", {}))
-    _write_text(job_dir / "report.md", out.get("report_md", ""))
-    _write_json(job_dir / "report_meta.json", out.get("report_meta", {}))
-    _write_json(job_dir / "trace.json", out.get("trace", []))
+    selected_extract = {}
+    if isinstance(selected_extract_idx, int) and 0 <= selected_extract_idx < len(extract_attempts):
+        selected_extract = extract_attempts[selected_extract_idx]
+    elif extract_attempts:
+        selected_extract = extract_attempts[-1]
+    else:
+        selected_extract = {}
+
+    structured_for_legacy = selected_extract.get("structured")
+    if structured_for_legacy is None:
+        structured_for_legacy = out.get("structured")
+
+    extract_meta_for_legacy = {
+        "parse_ok": selected_extract.get("parse_ok"),
+        "parse_repaired": selected_extract.get("parse_repaired"),
+        "usage": selected_extract.get("usage", {}) or {},
+        "extractor": selected_extract.get("extractor", {}) or {},
+    }
+    if not extract_meta_for_legacy["extractor"]:
+        extract_meta_for_legacy = out.get("extract_meta", {})
+
+
+    writer = JobRunArtifactWriter(args.out_dir)
+    job_dir = writer.write(
+        run_id=run_id,
+        job_id=args.job_id,
+        state=out,
+        summary=summary,
+    )
 
     print(f"✅ Wrote artifacts to: {job_dir}")
+    print(f"[ok] route={route} qc={qc_status} elapsed={round(elapsed, 3)}s")
 
 
 def main() -> None:

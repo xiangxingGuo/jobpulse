@@ -1,3 +1,9 @@
+"""
+This module currently serves MCP/tool-side schemas and legacy typed models.
+LangGraph runtime state is currently defined and enforced in graph.py.
+"""
+
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -205,3 +211,138 @@ class JobState:
 
     # run config (per job)
     config: Dict[str, Any] = field(default_factory=dict)
+
+# ----------------------------
+# LangGraph v2 State
+# ----------------------------
+
+@dataclass
+class RunMeta:
+    run_id: str
+    workflow: str
+    status: str
+    started_at: str
+    ended_at: Optional[str] = None
+    route: Optional[str] = None
+    entrypoint: str = "langgraph"
+
+
+@dataclass
+class InputState:
+    job_id: str
+    source: str = "handshake"
+    resume_text: Optional[str] = None
+
+
+@dataclass
+class RoutingConfig:
+    primary_mode: Literal["local", "api"] = "api"
+    fallback_mode: Literal["api", "local"] = "api"
+    fallback_enabled: bool = True
+    local_enabled: bool = False
+
+
+@dataclass
+class ModelConfig:
+    prompt_name: str = "jd_extract_v2"
+
+    extract_provider: Literal["openai", "nvidia"] = "openai"
+    extract_model: Optional[str] = None
+
+    report_provider: Literal["openai", "nvidia"] = "openai"
+    report_model: Optional[str] = None
+
+    local_mode: str = "chat_lora"
+    local_model: str = "Qwen/Qwen2.5-0.5B-Instruct"
+    local_lora_path: Optional[str] = None
+
+
+@dataclass
+class QCPolicy:
+    require_keys: List[str] = field(
+        default_factory=lambda: ["role_title", "company", "requirements", "responsibilities"]
+    )
+    require_non_empty_any_of: List[List[str]] = field(
+        default_factory=lambda: [["requirements", "responsibilities"]]
+    )
+
+
+@dataclass
+class FeatureFlags:
+    enable_skill_gap: bool = False
+
+
+@dataclass
+class JobData:
+    jd_text: Optional[str] = None
+    jd_path: Optional[str] = None
+    jd_meta: Dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass
+class ExtractionAttempt:
+    stage: str                    # primary / fallback
+    mode: Literal["local", "api"]
+    structured: Optional[JobStructured]
+    raw_output: str
+    parse_ok: bool
+    parse_repaired: bool
+    extractor: Dict[str, Any] = field(default_factory=dict)
+    usage: Dict[str, Any] = field(default_factory=dict)
+    error: Optional[str] = None
+
+
+@dataclass
+class ExtractionState:
+    attempts: List[ExtractionAttempt] = field(default_factory=list)
+    selected_attempt: Optional[int] = None
+
+
+@dataclass
+class QCAttempt:
+    stage: str                    # primary / fallback
+    ok: bool
+    status: Literal["pass", "fail"]
+    reasons: List[str] = field(default_factory=list)
+    checks: Dict[str, Any] = field(default_factory=dict)
+    summary: Optional[str] = None
+
+
+@dataclass
+class QCState:
+    attempts: List[QCAttempt] = field(default_factory=list)
+    selected_attempt: Optional[int] = None
+
+
+@dataclass
+class ReportState:
+    report_md: Optional[str] = None
+    meta: Dict[str, Any] = field(default_factory=dict)
+    usage: Dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass
+class ArtifactState:
+    base_dir: Optional[str] = None
+    paths: Dict[str, str] = field(default_factory=dict)
+
+
+@dataclass
+class JobRunState:
+    run: RunMeta
+    input: InputState
+    config_routing: RoutingConfig = field(default_factory=RoutingConfig)
+    config_models: ModelConfig = field(default_factory=ModelConfig)
+    qc_policy: QCPolicy = field(default_factory=QCPolicy)
+    features: FeatureFlags = field(default_factory=FeatureFlags)
+
+    job: JobData = field(default_factory=JobData)
+    extraction: ExtractionState = field(default_factory=ExtractionState)
+    qc_state: QCState = field(default_factory=QCState)
+    report_state: ReportState = field(default_factory=ReportState)
+    artifacts: ArtifactState = field(default_factory=ArtifactState)
+
+    trace: List[Dict[str, Any]] = field(default_factory=list)
+    decisions: List[Dict[str, Any]] = field(default_factory=list)
+    metrics: Dict[str, Any] = field(default_factory=lambda: {"node_ms": {}})
+    errors: List[Dict[str, Any]] = field(default_factory=list)
