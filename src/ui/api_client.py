@@ -69,6 +69,39 @@ def match_resume(resume_text: str, top_k: int = 5) -> dict:
     return r.json()
 
 
+def analyze_resume_fit(
+    resume_text: str,
+    job_id: str,
+    include_market_context: bool = True,
+    market_top_k: int = 5,
+    include_report: bool = True,
+) -> dict:
+    payload = {
+        "resume_text": resume_text,
+        "job_id": job_id,
+        "include_market_context": include_market_context,
+        "market_top_k": market_top_k,
+        "include_report": include_report,
+    }
+
+    r = requests.post(
+        f"{API_BASE}/resume/analyze-fit",
+        json=payload,
+        timeout=120,
+    )
+
+    if not r.ok:
+        try:
+            detail = r.json()
+        except Exception:
+            detail = {"raw_text": r.text}
+        raise RuntimeError(
+            f"/resume/analyze-fit failed: status={r.status_code}, detail={detail}"
+        )
+
+    return r.json()
+
+
 def parse_resume_file(filename: str, file_bytes: bytes) -> dict:
     files = {
         "file": (filename, file_bytes),

@@ -105,3 +105,72 @@ class JobRunArtifactWriter:
         _write_json(job_dir / "report_meta.json", report_meta)
 
         return job_dir
+
+
+class SkillGapArtifactWriter:
+    """
+    Persist artifacts for resume-to-job skill-gap analysis.
+
+    Intended for API/UI-triggered analysis flows, independent of LangGraph.
+    """
+
+    def __init__(self, base_dir: str | Path) -> None:
+        self.base_dir = Path(base_dir)
+
+    def write(
+        self,
+        *,
+        run_id: str,
+        job_id: str,
+        resume_profile: Dict[str, Any],
+        skill_gap: Dict[str, Any],
+        report_md: str = "",
+        meta: Dict[str, Any] | None = None,
+        artifacts: Dict[str, Any] | None = None,
+        resume_text: str | None = None,
+        structured_job: Dict[str, Any] | None = None,
+    ) -> Path:
+        job_dir = self.base_dir / run_id / job_id
+        job_dir.mkdir(parents=True, exist_ok=True)
+
+        artifacts = artifacts or {}
+        meta = meta or {}
+        structured_job = structured_job or {}
+
+        _write_json(job_dir / "resume_profile.json", resume_profile)
+        _write_json(job_dir / "skill_gap.json", skill_gap)
+        _write_text(job_dir / "skill_gap_report.md", report_md)
+        _write_json(job_dir / "analysis_meta.json", meta)
+
+        if resume_text is not None:
+            _write_text(job_dir / "resume.txt", resume_text)
+
+        if structured_job:
+            _write_json(job_dir / "job.json", structured_job)
+
+        baseline = artifacts.get("baseline")
+        if baseline is not None:
+            _write_json(job_dir / "baseline.json", baseline)
+
+        job_context = artifacts.get("job_context")
+        if job_context is not None:
+            _write_json(job_dir / "job_context.json", job_context)
+
+        market_context = artifacts.get("market_context")
+        if market_context is not None:
+            _write_json(job_dir / "market_context.json", market_context)
+
+        run_summary = {
+            "run_id": run_id,
+            "job_id": job_id,
+            "workflow": "skill_gap_analysis_v1",
+            "has_report": bool((report_md or "").strip()),
+            "fit_score": skill_gap.get("fit_score"),
+            "fit_band": skill_gap.get("fit_band"),
+            "strength_count": len(skill_gap.get("strengths", []) or []),
+            "gap_count": len(skill_gap.get("gaps", []) or []),
+            "transferable_count": len(skill_gap.get("transferable_signals", []) or []),
+        }
+        _write_json(job_dir / "run_summary.json", run_summary)
+
+        return job_dir

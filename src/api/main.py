@@ -1,46 +1,63 @@
 from __future__ import annotations
 
+from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, UploadFile, File
 
 from src.api.schemas import (
+    AnalyticsSummaryResponse,
     HealthResponse,
     JobDetailResponse,
+    MetricsSummaryResponse,
     RecentRunsResponse,
+    ResumeAnalyzeFitRequest,
+    ResumeAnalyzeFitResponse,
+    ResumeMatchRequest,
+    ResumeMatchResponse,
+    ResumeParseResponse,
     SearchRequest,
     SearchResponse,
     SearchResult,
     SimilarResponse,
 )
-from src.db import fetch_job_detail, fetch_recent_scrape_runs
-from src.retrieval.search import JobSearchService
-from src.api.schemas import MetricsSummaryResponse
-from src.db import fetch_job_detail, fetch_recent_scrape_runs, fetch_metrics_summary
-from src.api.schemas import AnalyticsSummaryResponse
-from src.db import fetch_analytics_summary
-from src.api.schemas import ResumeMatchRequest, ResumeMatchResponse
-from src.retrieval.resume_match import match_resume_to_jobs
-from fastapi import FastAPI, HTTPException, UploadFile, File
-from src.api.schemas import ResumeParseResponse
+from src.db import (
+    fetch_analytics_summary,
+    fetch_job_detail,
+    fetch_metrics_summary,
+    fetch_recent_scrape_runs,
+)
 from src.resume.parse import extract_resume_text
-from contextlib import asynccontextmanager
+from src.retrieval.resume_match import match_resume_to_jobs
+from src.services.job_search_service import JobSearchService
+from src.services.report_service import ReportService
+from src.services.skill_gap_service import SkillGapService
+from src.observability.artifact_writer import SkillGapArtifactWriter
 
-
-_search_service = None
+import os
+import uuid
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global _search_service
+    global _search_service, _skill_gap_service, _report_service
     try:
         _search_service = JobSearchService(index_dir=INDEX_DIR)
-        print("Search service preloaded.")
+        _skill_gap_service = SkillGapService(job_search_service=_search_service)
+        _report_service = ReportService()
+        print("Search / skill-gap / report services preloaded.")
     except Exception as e:
-        print(f"Failed to preload search service: {e}")
+        print(f"Failed to preload services: {e}")
         _search_service = None
+        _skill_gap_service = None
+        _report_service = None
     yield
 
 INDEX_DIR = Path("data/vectors")
+SKILL_GAP_ARTIFACTS_DIR = Path(os.getenv("ARTIFACT_DIR", "data/artifacts")) / "skill_gap"
+
+_skill_gap_service: SkillGapService | None = None
+_report_service: ReportService | None = None
+_search_service: JobSearchService | None = None
 
 app = FastAPI(
     title="JobPulse API",
@@ -59,6 +76,20 @@ def get_search_service() -> JobSearchService:
     return _search_service
 
 
+def get_skill_gap_service() -> SkillGapService:
+    global _skill_gap_service
+    if _skill_gap_service is None:
+        _skill_gap_service = SkillGapService(job_search_service=get_search_service())
+    return _skill_gap_service
+
+
+def get_report_service() -> ReportService:
+    global _report_service
+    if _report_service is None:
+        _report_service = ReportService()
+    return _report_service
+
+
 @app.get("/health", response_model=HealthResponse)
 def health() -> HealthResponse:
     index_ready = (INDEX_DIR / "jobs.faiss").exists() and (INDEX_DIR / "meta.jsonl").exists()
@@ -72,12 +103,12 @@ def search_jobs(req: SearchRequest) -> SearchResponse:
 
     items = [
         SearchResult(
-            job_id=str(r.get("job_id")),
-            title=r.get("title"),
-            company=r.get("company"),
-            location=r.get("location"),
-            url=r.get("url"),
-            score=float(r.get("score", 0.0)),
+            job_id=r.job_id,
+            title=r.title,
+            company=r.company,
+            location=r.location,
+            url=r.url,
+            score=float(r.score),
         )
         for r in results
     ]
@@ -96,18 +127,18 @@ def get_job(job_id: str) -> JobDetailResponse:
 def similar_jobs(job_id: str, top_k: int = 10) -> SimilarResponse:
     svc = get_search_service()
     try:
-        results = svc.similar_jobs(job_id, top_k=top_k)
+        results = svc.similar_jobs_for_job(job_id, top_k=top_k)
     except ValueError:
         raise HTTPException(status_code=404, detail="job not found in vector index")
 
     items = [
         SearchResult(
-            job_id=str(r.get("job_id")),
-            title=r.get("title"),
-            company=r.get("company"),
-            location=r.get("location"),
-            url=r.get("url"),
-            score=float(r.get("score", 0.0)),
+            job_id=r.job_id,
+            title=r.title,
+            company=r.company,
+            location=r.location,
+            url=r.url,
+            score=float(r.score),
         )
         for r in results
     ]
@@ -133,6 +164,106 @@ def analytics_summary(limit: int = 10) -> AnalyticsSummaryResponse:
 def resume_match(req: ResumeMatchRequest) -> ResumeMatchResponse:
     row = match_resume_to_jobs(req.resume_text, top_k=req.top_k)
     return ResumeMatchResponse(**row)
+
+
+@app.post("/resume/analyze-fit", response_model=ResumeAnalyzeFitResponse)
+async def resume_analyze_fit(req: ResumeAnalyzeFitRequest) -> ResumeAnalyzeFitResponse:
+    skill_gap_svc = get_skill_gap_service()
+
+    try:
+        out = skill_gap_svc.analyze(
+            resume_text=req.resume_text,
+            job_id=req.job_id,
+            include_market_context=req.include_market_context,
+            market_top_k=req.market_top_k,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except RuntimeError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"skill gap analysis failed: {e}")
+
+    report_md = ""
+    report_meta: dict[str, object] = {}
+
+    if req.include_report:
+        report_svc = get_report_service()
+        search_svc = get_search_service()
+        job = search_svc.get_job_by_id(req.job_id) or {}
+
+        try:
+            report = await report_svc.generate_skill_gap_report(
+                job_id=req.job_id,
+                structured=job,
+                qc={"status": "baseline_only", "ok": True, "reasons": []},
+                resume_profile=out["resume_profile"],
+                skill_gap=out["skill_gap"],
+                resume_text=req.resume_text,
+                market_context=out["artifacts"]["market_context"],
+            )
+            report_md = report.report_md
+            report_meta = {
+                "report_meta": report.meta,
+                "report_usage": report.usage or {},
+            }
+        except Exception as e:
+            report_md = (
+                "# Skill Gap Report\n\n"
+                "Structured analysis succeeded, but markdown report generation failed.\n\n"
+                f"- error: {e}"
+            )
+            report_meta = {
+                "report_error": str(e),
+            }
+
+    artifact_meta: dict[str, object] = {}
+
+    try:
+        artifact_run_id = uuid.uuid4().hex[:10]
+        artifact_writer = SkillGapArtifactWriter(SKILL_GAP_ARTIFACTS_DIR)
+        search_svc = get_search_service()
+        structured_job = search_svc.get_job_by_id(req.job_id) or {}
+
+        artifact_dir = artifact_writer.write(
+            run_id=artifact_run_id,
+            job_id=req.job_id,
+            resume_profile=out["resume_profile"],
+            skill_gap=out["skill_gap"],
+            report_md=report_md,
+            meta={
+                "job_id": req.job_id,
+                "include_market_context": req.include_market_context,
+                "market_top_k": req.market_top_k,
+                **report_meta,
+            },
+            artifacts=out.get("artifacts") or {},
+            resume_text=req.resume_text,
+            structured_job=structured_job,
+        )
+
+        artifact_meta = {
+            "artifact_run_id": artifact_run_id,
+            "artifact_dir": str(artifact_dir),
+        }
+    except Exception as e:
+        artifact_meta = {
+            "artifact_error": str(e),
+        }    
+    
+    return ResumeAnalyzeFitResponse(
+        resume_profile=out["resume_profile"],
+        skill_gap=out["skill_gap"],
+        report_md=report_md,
+        meta={
+            "job_id": req.job_id,
+            "include_market_context": req.include_market_context,
+            "market_top_k": req.market_top_k,
+            **report_meta,
+            **artifact_meta,
+        },
+    )
+
 
 
 @app.post("/resume/parse", response_model=ResumeParseResponse)

@@ -4,6 +4,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
+from src.schemas.skill_gap import ResumeProfile, SkillGapResult
 
 class SearchRequest(BaseModel):
     query: str = Field(..., min_length=1)
@@ -105,3 +106,16 @@ class ResumeParseResponse(BaseModel):
     chars: int
     resume_text: str
 
+class ResumeAnalyzeFitRequest(BaseModel):
+    job_id: str = Field(..., min_length=1)
+    resume_text: str = Field(..., min_length=20)
+    include_market_context: bool = True
+    market_top_k: int = Field(default=5, ge=1, le=20)
+    include_report: bool = True
+
+
+class ResumeAnalyzeFitResponse(BaseModel):
+    resume_profile: ResumeProfile
+    skill_gap: SkillGapResult
+    report_md: str = ""
+    meta: dict[str, Any] = {}
