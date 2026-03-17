@@ -109,9 +109,14 @@ class ResumeParseResponse(BaseModel):
 class ResumeAnalyzeFitRequest(BaseModel):
     job_id: str = Field(..., min_length=1)
     resume_text: str = Field(..., min_length=20)
+
     include_market_context: bool = True
     market_top_k: int = Field(default=5, ge=1, le=20)
     include_report: bool = True
+
+    analysis_mode: str = Field(default="baseline", pattern="^(baseline|hybrid)$")
+    provider: str = Field(default="openai", pattern="^(openai|nvidia)$")
+    model: str | None = None
 
 
 class ResumeAnalyzeFitResponse(BaseModel):

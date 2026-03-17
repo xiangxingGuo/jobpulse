@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import os
+import uuid
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -27,12 +29,12 @@ from src.db import (
     fetch_metrics_summary,
     fetch_recent_scrape_runs,
 )
+from src.observability.artifact_writer import SkillGapArtifactWriter
 from src.resume.parse import extract_resume_text
 from src.retrieval.resume_match import match_resume_to_jobs
 from src.services.job_search_service import JobSearchService
 from src.services.report_service import ReportService
 from src.services.skill_gap_service import SkillGapService
-from src.observability.artifact_writer import SkillGapArtifactWriter
 
 import os
 import uuid
@@ -171,12 +173,25 @@ async def resume_analyze_fit(req: ResumeAnalyzeFitRequest) -> ResumeAnalyzeFitRe
     skill_gap_svc = get_skill_gap_service()
 
     try:
-        out = skill_gap_svc.analyze(
-            resume_text=req.resume_text,
-            job_id=req.job_id,
-            include_market_context=req.include_market_context,
-            market_top_k=req.market_top_k,
-        )
+        if req.analysis_mode == "hybrid":
+            out = await skill_gap_svc.analyze_async(
+                resume_text=req.resume_text,
+                job_id=req.job_id,
+                include_market_context=req.include_market_context,
+                market_top_k=req.market_top_k,
+                analysis_mode="hybrid",
+                provider=req.provider,
+                model=req.model,
+                temperature=0.2,
+                max_tokens=1400,
+            )
+        else:
+            out = skill_gap_svc.analyze(
+                resume_text=req.resume_text,
+                job_id=req.job_id,
+                include_market_context=req.include_market_context,
+                market_top_k=req.market_top_k,
+            )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except RuntimeError as e:
@@ -196,11 +211,17 @@ async def resume_analyze_fit(req: ResumeAnalyzeFitRequest) -> ResumeAnalyzeFitRe
             report = await report_svc.generate_skill_gap_report(
                 job_id=req.job_id,
                 structured=job,
-                qc={"status": "baseline_only", "ok": True, "reasons": []},
+                qc={
+                    "status": "hybrid" if req.analysis_mode == "hybrid" else "baseline_only",
+                    "ok": True,
+                    "reasons": [],
+                },
                 resume_profile=out["resume_profile"],
                 skill_gap=out["skill_gap"],
                 resume_text=req.resume_text,
-                market_context=out["artifacts"]["market_context"],
+                market_context=(out.get("artifacts") or {}).get("market_context", {}),
+                provider=req.provider,
+                model=req.model,
             )
             report_md = report.report_md
             report_meta = {
@@ -235,6 +256,9 @@ async def resume_analyze_fit(req: ResumeAnalyzeFitRequest) -> ResumeAnalyzeFitRe
                 "job_id": req.job_id,
                 "include_market_context": req.include_market_context,
                 "market_top_k": req.market_top_k,
+                "analysis_mode": req.analysis_mode,
+                "provider": req.provider,
+                "model": req.model,
                 **report_meta,
             },
             artifacts=out.get("artifacts") or {},
@@ -249,8 +273,8 @@ async def resume_analyze_fit(req: ResumeAnalyzeFitRequest) -> ResumeAnalyzeFitRe
     except Exception as e:
         artifact_meta = {
             "artifact_error": str(e),
-        }    
-    
+        }
+
     return ResumeAnalyzeFitResponse(
         resume_profile=out["resume_profile"],
         skill_gap=out["skill_gap"],
@@ -259,6 +283,9 @@ async def resume_analyze_fit(req: ResumeAnalyzeFitRequest) -> ResumeAnalyzeFitRe
             "job_id": req.job_id,
             "include_market_context": req.include_market_context,
             "market_top_k": req.market_top_k,
+            "analysis_mode": req.analysis_mode,
+            "provider": req.provider,
+            "model": req.model,
             **report_meta,
             **artifact_meta,
         },

@@ -75,6 +75,9 @@ def analyze_resume_fit(
     include_market_context: bool = True,
     market_top_k: int = 5,
     include_report: bool = True,
+    analysis_mode: str = "baseline",
+    provider: str = "openai",
+    model: str | None = None,
 ) -> dict:
     payload = {
         "resume_text": resume_text,
@@ -82,12 +85,15 @@ def analyze_resume_fit(
         "include_market_context": include_market_context,
         "market_top_k": market_top_k,
         "include_report": include_report,
+        "analysis_mode": analysis_mode,
+        "provider": provider,
+        "model": model,
     }
 
     r = requests.post(
         f"{API_BASE}/resume/analyze-fit",
         json=payload,
-        timeout=120,
+        timeout=180,
     )
 
     if not r.ok:

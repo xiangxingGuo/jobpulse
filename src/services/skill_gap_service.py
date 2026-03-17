@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass, asdict
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Literal
 
-from src.services.resume_service import ResumeService
-from src.services.job_search_service import JobSearchService
+from src.llm.json_repair import parse_json_object
+from src.llm.providers.openai_compat_client import OpenAICompatClient
+from src.llm.providers.openai_compat_providers import PROVIDERS
 from src.schemas.skill_gap import (
     EvidenceItem,
     GapItem,
@@ -13,6 +15,12 @@ from src.schemas.skill_gap import (
     SkillGapResult,
     StrengthItem,
 )
+from src.services.job_search_service import JobSearchService
+from src.services.resume_service import ResumeService
+from src.services.skill_gap_prompt import build_skill_gap_analysis_messages
+
+
+AnalysisMode = Literal["baseline", "hybrid"]
 
 
 @dataclass
@@ -20,6 +28,7 @@ class SkillGapAnalyzeArtifacts:
     baseline: Dict[str, Any]
     job_context: Dict[str, Any]
     market_context: Dict[str, Any]
+    llm: Dict[str, Any] | None = None
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
@@ -27,13 +36,12 @@ class SkillGapAnalyzeArtifacts:
 
 class SkillGapService:
     """
-    v1 deterministic baseline skill-gap analyzer.
+    Hybrid-ready skill-gap analyzer.
 
-    Design goals:
-    - no LLM dependency required
-    - grounded in resume profile + job detail + semantic retrieval
-    - emits structured SkillGapResult
-    - easy to upgrade later with LLM enrichment
+    v1:
+    - baseline analysis remains the default and always works without LLM
+    - hybrid mode overlays LLM reasoning on top of baseline signals
+    - fit_score / fit_band / confidence stay deterministic
     """
 
     def __init__(
@@ -45,6 +53,10 @@ class SkillGapService:
         self.resume_service = resume_service or ResumeService()
         self.job_search_service = job_search_service or JobSearchService()
 
+    # ------------------------------------------------------------------
+    # Public API
+    # ------------------------------------------------------------------
+
     def analyze(
         self,
         *,
@@ -54,13 +66,140 @@ class SkillGapService:
         market_top_k: int = 5,
     ) -> Dict[str, Any]:
         """
-        Main entrypoint.
-
-        Returns a dict payload for now so downstream callers can use:
-        - resume_profile
-        - skill_gap
-        - artifacts/debug context
+        Synchronous baseline-only path.
+        Safe default for current API/UI callers.
         """
+        ctx = self._build_analysis_context(
+            resume_text=resume_text,
+            job_id=job_id,
+            include_market_context=include_market_context,
+            market_top_k=market_top_k,
+        )
+
+        result = self._build_baseline_result(
+            job_id=job_id,
+            resume_profile=ctx["resume_profile"],
+            job_detail=ctx["job_detail"],
+            baseline=ctx["baseline"],
+            market_context=ctx["market_context"],
+        )
+
+        artifacts = SkillGapAnalyzeArtifacts(
+            baseline=ctx["baseline"],
+            job_context=self._job_context(ctx["job_detail"], job_id),
+            market_context=ctx["market_context"],
+            llm=None,
+        )
+
+        return {
+            "resume_profile": ctx["resume_profile"].model_dump(),
+            "skill_gap": result.model_dump(),
+            "artifacts": artifacts.to_dict(),
+        }
+
+    async def analyze_async(
+        self,
+        *,
+        resume_text: str,
+        job_id: str,
+        include_market_context: bool = True,
+        market_top_k: int = 5,
+        analysis_mode: AnalysisMode = "baseline",
+        provider: Literal["openai", "nvidia"] = "openai",
+        model: Optional[str] = None,
+        temperature: float = 0.2,
+        max_tokens: int = 1400,
+        thinking: Literal["auto", "disabled", "enabled"] = "disabled",
+    ) -> Dict[str, Any]:
+        """
+        Async path that supports both baseline and hybrid modes.
+        """
+        if analysis_mode == "baseline":
+            return self.analyze(
+                resume_text=resume_text,
+                job_id=job_id,
+                include_market_context=include_market_context,
+                market_top_k=market_top_k,
+            )
+
+        ctx = self._build_analysis_context(
+            resume_text=resume_text,
+            job_id=job_id,
+            include_market_context=include_market_context,
+            market_top_k=market_top_k,
+        )
+
+        baseline_result = self._build_baseline_result(
+            job_id=job_id,
+            resume_profile=ctx["resume_profile"],
+            job_detail=ctx["job_detail"],
+            baseline=ctx["baseline"],
+            market_context=ctx["market_context"],
+        )
+
+        llm_result = await self._analyze_with_llm(
+            resume_profile=ctx["resume_profile"],
+            resume_text=resume_text,
+            job_detail=ctx["job_detail"],
+            baseline=ctx["baseline"],
+            market_context=ctx["market_context"],
+            provider=provider,
+            model=model,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            thinking=thinking,
+        )
+
+        final_result = self._merge_baseline_and_llm(
+            baseline_result=baseline_result,
+            llm_result=llm_result.get("structured"),
+        )
+
+        final_meta = dict(final_result.meta or {})
+        final_meta["analysis_mode"] = "hybrid"
+        final_meta["llm"] = {
+            "provider": llm_result.get("provider"),
+            "model": llm_result.get("model"),
+            "parse_ok": llm_result.get("parse_ok"),
+            "parse_repaired": llm_result.get("parse_repaired"),
+            "base_url": llm_result.get("base_url"),
+        }
+        final_result.meta = final_meta
+
+        artifacts = SkillGapAnalyzeArtifacts(
+            baseline=ctx["baseline"],
+            job_context=self._job_context(ctx["job_detail"], job_id),
+            market_context=ctx["market_context"],
+            llm={
+                "raw_output": llm_result.get("raw_output", ""),
+                "structured": llm_result.get("structured"),
+                "parse_ok": llm_result.get("parse_ok"),
+                "parse_repaired": llm_result.get("parse_repaired"),
+                "usage": llm_result.get("usage") or {},
+                "provider": llm_result.get("provider"),
+                "model": llm_result.get("model"),
+                "base_url": llm_result.get("base_url"),
+            },
+        )
+
+        return {
+            "resume_profile": ctx["resume_profile"].model_dump(),
+            "skill_gap": final_result.model_dump(),
+            "artifacts": artifacts.to_dict(),
+        }
+
+    # ------------------------------------------------------------------
+    # Context building
+    # ------------------------------------------------------------------
+
+    def _build_analysis_context(
+        self,
+        *,
+        resume_text: str,
+        job_id: str,
+        include_market_context: bool,
+        market_top_k: int,
+    ) -> Dict[str, Any]:
         if not resume_text or not resume_text.strip():
             raise ValueError("resume_text is empty")
 
@@ -95,35 +234,25 @@ class SkillGapService:
             job_detail=job_detail,
         )
 
-        result = self._build_skill_gap_result(
-            job_id=job_id,
-            resume_profile=resume_profile,
-            job_detail=job_detail,
-            baseline=baseline,
-            market_context=market_context,
-        )
-
-        artifacts = SkillGapAnalyzeArtifacts(
-            baseline=baseline,
-            job_context={
-                "job_id": job_id,
-                "title": job_detail.get("title"),
-                "company": job_detail.get("company"),
-                "location": job_detail.get("location"),
-                "skills": job_detail.get("skills", []),
-            },
-            market_context=market_context,
-        )
-
         return {
-            "resume_profile": resume_profile.model_dump(),
-            "skill_gap": result.model_dump(),
-            "artifacts": artifacts.to_dict(),
+            "resume_profile": resume_profile,
+            "job_detail": job_detail,
+            "market_context": market_context,
+            "baseline": baseline,
         }
 
-    # ---------------------------------------------------------
-    # Internal helpers
-    # ---------------------------------------------------------
+    def _job_context(self, job_detail: Dict[str, Any], job_id: str) -> Dict[str, Any]:
+        return {
+            "job_id": job_id,
+            "title": job_detail.get("title"),
+            "company": job_detail.get("company"),
+            "location": job_detail.get("location"),
+            "skills": job_detail.get("skills", []),
+        }
+
+    # ------------------------------------------------------------------
+    # Baseline logic
+    # ------------------------------------------------------------------
 
     def _build_baseline(
         self,
@@ -157,7 +286,7 @@ class SkillGapService:
             "job_skill_count": len(job_skills),
         }
 
-    def _build_skill_gap_result(
+    def _build_baseline_result(
         self,
         *,
         job_id: str,
@@ -292,7 +421,8 @@ class SkillGapService:
             action_plan_30d=action_plan_30d,
             summary=summary,
             meta={
-                "version": "skill_gap_v1_baseline",
+                "version": "skill_gap_v2_baseline",
+                "analysis_mode": "baseline",
                 "job_title": job_detail.get("title"),
                 "company": job_detail.get("company"),
                 "location": job_detail.get("location"),
@@ -305,6 +435,295 @@ class SkillGapService:
                 },
             },
         )
+
+    # ------------------------------------------------------------------
+    # LLM layer
+    # ------------------------------------------------------------------
+
+    async def _analyze_with_llm(
+        self,
+        *,
+        resume_profile: ResumeProfile,
+        resume_text: str,
+        job_detail: Dict[str, Any],
+        baseline: Dict[str, Any],
+        market_context: Dict[str, Any],
+        provider: Literal["openai", "nvidia"],
+        model: Optional[str],
+        temperature: float,
+        max_tokens: int,
+        thinking: Literal["auto", "disabled", "enabled"],
+    ) -> Dict[str, Any]:
+        prov = provider
+        cfg = PROVIDERS[prov]
+        if model is None:
+            model = cfg.default_model
+
+        if not model:
+            raise ValueError(f"No model resolved for provider={provider}")
+
+        messages = build_skill_gap_analysis_messages(
+            resume_profile=resume_profile.model_dump(),
+            resume_text=resume_text,
+            job_detail=job_detail,
+            baseline=baseline,
+            market_context=market_context,
+        )
+
+        payload: Dict[str, Any] = {
+            "model": model,
+            "temperature": float(temperature),
+            "max_tokens": int(max_tokens),
+            "messages": messages,
+        }
+
+        effective_thinking = thinking
+        if effective_thinking == "auto":
+            effective_thinking = "disabled" if provider == "nvidia" else "auto"
+
+        if effective_thinking == "disabled":
+            payload["extra_body"] = {"thinking": {"type": "disabled"}}
+        elif effective_thinking == "enabled":
+            payload["extra_body"] = {"thinking": {"type": "enabled"}}
+
+        if provider == "openai":
+            payload.pop("extra_body", None)
+
+        client = OpenAICompatClient(provider=prov)
+        resp = await client.chat_completions(payload)
+
+        raw_output = self._get_message_text(resp)
+        usage = resp.get("usage", {})
+
+        if not raw_output.strip():
+            raw_output = json.dumps(resp, ensure_ascii=False)
+
+        parsed, repaired_flag, _ = parse_json_object(raw_output)
+        parse_ok = isinstance(parsed, dict)
+
+        normalized = self._normalize_llm_output(parsed if parse_ok else None)
+
+        return {
+            "structured": normalized,
+            "raw_output": raw_output,
+            "parse_ok": parse_ok,
+            "parse_repaired": repaired_flag,
+            "usage": usage,
+            "provider": provider,
+            "model": model,
+            "base_url": client.base_url,
+            "thinking": effective_thinking,
+        }
+
+    def _normalize_llm_output(self, parsed: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+        if not isinstance(parsed, dict):
+            return None
+
+        out: Dict[str, Any] = {
+            "strengths": [],
+            "gaps": [],
+            "transferable_signals": [],
+            "resume_suggestions": [],
+            "summary": "",
+        }
+
+        for raw in parsed.get("strengths", []) or []:
+            item = self._safe_strength_item(raw)
+            if item is not None:
+                out["strengths"].append(item)
+
+        for raw in parsed.get("gaps", []) or []:
+            item = self._safe_gap_item(raw)
+            if item is not None:
+                out["gaps"].append(item)
+
+        for raw in parsed.get("transferable_signals", []) or []:
+            item = self._safe_strength_item(raw, force_support="transferable")
+            if item is not None:
+                out["transferable_signals"].append(item)
+
+        for raw in parsed.get("resume_suggestions", []) or []:
+            item = self._safe_resume_suggestion(raw)
+            if item is not None:
+                out["resume_suggestions"].append(item)
+
+        summary = parsed.get("summary")
+        if isinstance(summary, str):
+            out["summary"] = summary.strip()
+
+        return out
+
+    def _merge_baseline_and_llm(
+        self,
+        *,
+        baseline_result: SkillGapResult,
+        llm_result: Optional[Dict[str, Any]],
+    ) -> SkillGapResult:
+        if not llm_result:
+            fallback = baseline_result.model_copy(deep=True)
+            meta = dict(fallback.meta or {})
+            meta["llm_merge"] = "fallback_to_baseline"
+            fallback.meta = meta
+            return fallback
+
+        baseline_strengths = list(baseline_result.strengths)
+        llm_strengths = list(llm_result.get("strengths") or [])
+        merged_strengths = self._dedupe_strengths(baseline_strengths + llm_strengths)
+
+        baseline_transferable = list(baseline_result.transferable_signals)
+        llm_transferable = list(llm_result.get("transferable_signals") or [])
+        merged_transferable = self._dedupe_strengths(
+            baseline_transferable + llm_transferable
+        )
+
+        llm_gaps = list(llm_result.get("gaps") or [])
+        merged_gaps = self._dedupe_gaps(llm_gaps or list(baseline_result.gaps))
+
+        llm_suggestions = list(llm_result.get("resume_suggestions") or [])
+        merged_suggestions = self._dedupe_suggestions(
+            llm_suggestions or list(baseline_result.resume_suggestions)
+        )
+
+        summary = (llm_result.get("summary") or "").strip() or baseline_result.summary
+
+        merged = baseline_result.model_copy(deep=True)
+        merged.strengths = merged_strengths[:8]
+        merged.transferable_signals = merged_transferable[:6]
+        merged.gaps = merged_gaps[:10]
+        merged.resume_suggestions = merged_suggestions[:6]
+        merged.summary = summary
+
+        meta = dict(merged.meta or {})
+        meta["llm_merge"] = "hybrid_overlay"
+        meta["llm_strength_count"] = len(llm_strengths)
+        meta["llm_gap_count"] = len(llm_gaps)
+        merged.meta = meta
+        return merged
+
+    # ------------------------------------------------------------------
+    # Safe item parsing
+    # ------------------------------------------------------------------
+
+    def _safe_strength_item(
+        self,
+        raw: Any,
+        *,
+        force_support: Optional[str] = None,
+    ) -> Optional[StrengthItem]:
+        if not isinstance(raw, dict):
+            return None
+
+        try:
+            evidence = [self._safe_evidence_item(ev) for ev in (raw.get("evidence") or [])]
+            evidence = [ev for ev in evidence if ev is not None]
+
+            return StrengthItem(
+                skill=str(raw.get("skill", "")).strip(),
+                support=force_support or str(raw.get("support", "direct")).strip(),
+                rationale=str(raw.get("rationale", "")).strip(),
+                evidence=evidence,
+            )
+        except Exception:
+            return None
+
+    def _safe_gap_item(self, raw: Any) -> Optional[GapItem]:
+        if not isinstance(raw, dict):
+            return None
+
+        try:
+            evidence = [self._safe_evidence_item(ev) for ev in (raw.get("evidence") or [])]
+            evidence = [ev for ev in evidence if ev is not None]
+
+            return GapItem(
+                skill=str(raw.get("skill", "")).strip(),
+                category=str(raw.get("category", "ambiguous")).strip(),
+                severity=str(raw.get("severity", "medium")).strip(),
+                rationale=str(raw.get("rationale", "")).strip(),
+                evidence=evidence,
+                actionable=bool(raw.get("actionable", True)),
+            )
+        except Exception:
+            return None
+
+    def _safe_resume_suggestion(self, raw: Any) -> Optional[ResumeSuggestion]:
+        if not isinstance(raw, dict):
+            return None
+
+        try:
+            before = raw.get("before")
+            after = raw.get("after")
+            return ResumeSuggestion(
+                type=str(raw.get("type", "clarify")).strip(),
+                target=str(raw.get("target", "")).strip(),
+                before=str(before).strip() if isinstance(before, str) else None,
+                after=str(after).strip() if isinstance(after, str) else None,
+                rationale=str(raw.get("rationale", "")).strip(),
+            )
+        except Exception:
+            return None
+
+    def _safe_evidence_item(self, raw: Any) -> Optional[EvidenceItem]:
+        if not isinstance(raw, dict):
+            return None
+
+        try:
+            score = raw.get("score")
+            score_value = None
+            if score is not None:
+                try:
+                    score_value = max(0.0, min(1.0, float(score)))
+                except Exception:
+                    score_value = None
+
+            return EvidenceItem(
+                claim=str(raw.get("claim", "")).strip() or "Support for analysis item",
+                source=str(raw.get("source", "resume")).strip(),
+                snippet=str(raw.get("snippet", "")).strip() or "No snippet provided.",
+                score=score_value,
+            )
+        except Exception:
+            return None
+
+    # ------------------------------------------------------------------
+    # Utility merge helpers
+    # ------------------------------------------------------------------
+
+    def _dedupe_strengths(self, items: List[StrengthItem]) -> List[StrengthItem]:
+        out: List[StrengthItem] = []
+        seen: set[tuple[str, str]] = set()
+        for item in items:
+            key = (item.skill.lower().strip(), item.support.lower().strip())
+            if not key[0] or key in seen:
+                continue
+            seen.add(key)
+            out.append(item)
+        return out
+
+    def _dedupe_gaps(self, items: List[GapItem]) -> List[GapItem]:
+        out: List[GapItem] = []
+        seen: set[str] = set()
+        for item in items:
+            key = item.skill.lower().strip()
+            if not key or key in seen:
+                continue
+            seen.add(key)
+            out.append(item)
+        return out
+
+    def _dedupe_suggestions(self, items: List[ResumeSuggestion]) -> List[ResumeSuggestion]:
+        out: List[ResumeSuggestion] = []
+        seen: set[tuple[str, str]] = set()
+        for item in items:
+            key = (item.type.lower().strip(), item.target.lower().strip())
+            if not key[1] or key in seen:
+                continue
+            seen.add(key)
+            out.append(item)
+        return out
+
+    # ------------------------------------------------------------------
+    # Existing heuristics
+    # ------------------------------------------------------------------
 
     def _classify_gap_category(self, skill: str) -> str:
         must_have = {
@@ -529,3 +948,35 @@ class SkillGapService:
         if skill in {s.lower() for s in resume_profile.inferred_skills}:
             return f"Resume profile inferred '{skill}' from prior experience."
         return f"Resume shows supporting evidence for '{skill}'."
+
+    def _get_message_text(self, resp: Dict[str, Any]) -> str:
+        try:
+            choice0 = (resp.get("choices") or [])[0] or {}
+        except Exception:
+            choice0 = {}
+
+        msg = choice0.get("message") or {}
+        content = msg.get("content")
+
+        if isinstance(content, str):
+            return content
+
+        if isinstance(content, list):
+            parts = []
+            for p in content:
+                if isinstance(p, str):
+                    parts.append(p)
+                elif isinstance(p, dict):
+                    parts.append(p.get("text") or p.get("content") or "")
+            return "".join(parts)
+
+        for k in ("reasoning_content", "reasoning", "output_text", "text"):
+            v = msg.get(k)
+            if isinstance(v, str) and v.strip():
+                return v
+
+        text = choice0.get("text")
+        if isinstance(text, str):
+            return text
+
+        return ""

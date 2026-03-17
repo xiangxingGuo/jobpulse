@@ -51,6 +51,36 @@ def render_resume_match_page() -> None:
         value=st.session_state.get("resume_top_k", 5),
     )
 
+    st.markdown("### Analysis Settings")
+
+    c1, c2, c3 = st.columns(3)
+
+    analysis_mode = c1.selectbox(
+        "Analysis mode",
+        options=["baseline", "hybrid"],
+        index=0 if st.session_state.get("resume_analysis_mode", "baseline") == "baseline" else 1,
+        help="Baseline uses deterministic overlap logic. Hybrid adds LLM reasoning on top.",
+    )
+
+    provider = c2.selectbox(
+        "LLM provider",
+        options=["openai", "nvidia"],
+        index=0 if st.session_state.get("resume_analysis_provider", "openai") == "openai" else 1,
+        help="Used only when analysis mode is hybrid or report generation needs an LLM.",
+    )
+
+    model = c3.text_input(
+        "Model override (optional)",
+        value=st.session_state.get("resume_analysis_model", ""),
+        help="Leave blank to use the provider default model.",
+    )
+
+    include_report = st.checkbox(
+        "Generate markdown report",
+        value=st.session_state.get("resume_include_report", True),
+        help="If disabled, only structured analysis is returned.",
+    )
+
     if st.button("Run Resume Match", use_container_width=True):
         cleaned_resume_text = (resume_text or "").strip()
 
@@ -60,6 +90,10 @@ def render_resume_match_page() -> None:
             data = match_resume(resume_text=cleaned_resume_text, top_k=top_k)
             st.session_state.resume_text = cleaned_resume_text
             st.session_state.resume_top_k = top_k
+            st.session_state.resume_analysis_mode = analysis_mode
+            st.session_state.resume_analysis_provider = provider
+            st.session_state.resume_analysis_model = model
+            st.session_state.resume_include_report = include_report
             st.session_state.resume_match_result = data
             st.session_state.resume_expanded_job_id = None
             st.session_state.resume_expanded_job_detail = None
@@ -111,7 +145,10 @@ def render_resume_match_page() -> None:
                             job_id=job_id,
                             include_market_context=True,
                             market_top_k=5,
-                            include_report=True,
+                            include_report=include_report,
+                            analysis_mode=analysis_mode,
+                            provider=provider,
+                            model=(model.strip() or None),
                         )
                         st.session_state.resume_fit_analysis = analysis
                         st.session_state.resume_fit_job_id = job_id
@@ -162,6 +199,11 @@ def _render_skill_gap_analysis(analysis: dict) -> None:
     resume_profile = analysis.get("resume_profile") or {}
     report_md = analysis.get("report_md") or ""
     meta = analysis.get("meta") or {}
+    llm_meta = ((skill_gap.get("meta") or {}).get("llm") or {})
+
+    analysis_mode = meta.get("analysis_mode") or ((skill_gap.get("meta") or {}).get("analysis_mode"))
+    provider = meta.get("provider")
+    model = meta.get("model")
 
     st.markdown("#### Skill Gap Analysis")
 
@@ -174,6 +216,17 @@ def _render_skill_gap_analysis(analysis: dict) -> None:
     c2.metric("Fit Band", fit_band or "-")
     c3.metric("Confidence", confidence if confidence is not None else "-")
 
+    badges = []
+    if analysis_mode:
+        badges.append(f"mode={analysis_mode}")
+    if provider:
+        badges.append(f"provider={provider}")
+    if model:
+        badges.append(f"model={model}")
+
+    if badges:
+        st.caption(" | ".join(badges))
+    
     summary = skill_gap.get("summary")
     if summary:
         st.info(summary)
@@ -242,5 +295,9 @@ def _render_skill_gap_analysis(analysis: dict) -> None:
     if meta:
         with st.expander("Analysis Meta", expanded=False):
             st.json(meta)
-
+    
+    if llm_meta:
+        with st.expander("LLM Analysis Info", expanded=False):
+            st.json(llm_meta)
+    
     st.markdown("---")
