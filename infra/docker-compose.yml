@@ -11,6 +11,9 @@ services:
       - ../data:/app/data
     environment:
       - PYTHONPATH=/app
+      - NVIDIA_API_KEY=${NVIDIA_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - HF_TOKEN=${HF_TOKEN}
     restart: unless-stopped
 
   ui:
