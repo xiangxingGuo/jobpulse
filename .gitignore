@@ -49,3 +49,4 @@ data/artifacts/scrape/**
 data/artifacts/langgraph/**
 data/artifacts/skill_gap/**
 temp_test.py
+data/artifacts/job_market_chat/**

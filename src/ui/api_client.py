@@ -122,3 +122,37 @@ def parse_resume_file(filename: str, file_bytes: bytes) -> dict:
         raise RuntimeError(f"/resume/parse failed: status={r.status_code}, detail={detail}")
 
     return r.json()
+
+def job_market_chat(
+    question: str,
+    top_k: int = 5,
+    resume_text: str | None = None,
+    job_id: str | None = None,
+    provider: str = "openai",
+    model: str | None = None,
+) -> dict:
+    payload = {
+        "question": question,
+        "top_k": top_k,
+        "resume_text": resume_text,
+        "job_id": job_id,
+        "provider": provider,
+        "model": model,
+    }
+
+    r = requests.post(
+        f"{API_BASE}/chat/job-market",
+        json=payload,
+        timeout=180,
+    )
+
+    if not r.ok:
+        try:
+            detail = r.json()
+        except Exception:
+            detail = {"raw_text": r.text}
+        raise RuntimeError(
+            f"/chat/job-market failed: status={r.status_code}, detail={detail}"
+        )
+
+    return r.json()

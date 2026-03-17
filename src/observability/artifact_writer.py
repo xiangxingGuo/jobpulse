@@ -174,3 +174,83 @@ class SkillGapArtifactWriter:
         _write_json(job_dir / "run_summary.json", run_summary)
 
         return job_dir
+
+
+class JobMarketChatArtifactWriter:
+    """
+    Persist artifacts for single-turn grounded job-market chat.
+
+    Intended for API/UI-triggered chat flows, independent of LangGraph.
+    """
+
+    def __init__(self, base_dir: str | Path) -> None:
+        self.base_dir = Path(base_dir)
+
+    def write(
+        self,
+        *,
+        run_id: str,
+        question: str,
+        answer: str,
+        sources: list[dict[str, Any]],
+        meta: Dict[str, Any] | None = None,
+        artifacts: Dict[str, Any] | None = None,
+        resume_text: str | None = None,
+        job_id: str | None = None,
+    ) -> Path:
+        chat_dir = self.base_dir / run_id
+        chat_dir.mkdir(parents=True, exist_ok=True)
+
+        meta = meta or {}
+        artifacts = artifacts or {}
+
+        _write_text(chat_dir / "question.txt", question or "")
+        _write_text(chat_dir / "answer.md", answer or "")
+        _write_json(chat_dir / "sources.json", sources or [])
+        _write_json(chat_dir / "meta.json", meta)
+
+        if resume_text is not None:
+            _write_text(chat_dir / "resume.txt", resume_text)
+
+        if job_id:
+            _write_text(chat_dir / "job_id.txt", str(job_id))
+
+        retrieved_jobs = artifacts.get("retrieved_jobs")
+        if retrieved_jobs is not None:
+            _write_json(chat_dir / "retrieved_jobs.json", retrieved_jobs)
+
+        target_job = artifacts.get("target_job")
+        if target_job is not None:
+            _write_json(chat_dir / "target_job.json", target_job)
+
+        resume_profile = artifacts.get("resume_profile")
+        if resume_profile is not None:
+            _write_json(chat_dir / "resume_profile.json", resume_profile)
+
+        skill_gap = artifacts.get("skill_gap")
+        if skill_gap is not None:
+            _write_json(chat_dir / "skill_gap.json", skill_gap)
+
+        llm = artifacts.get("llm")
+        if llm is not None:
+            _write_json(chat_dir / "llm.json", llm)
+
+            raw_output = llm.get("raw_output")
+            if raw_output is not None:
+                _write_text(chat_dir / "llm_raw_output.txt", str(raw_output))
+
+        run_summary = {
+            "run_id": run_id,
+            "workflow": "job_market_chat_v1",
+            "job_id": job_id,
+            "question_chars": len((question or "").strip()),
+            "answer_chars": len((answer or "").strip()),
+            "source_count": len(sources or []),
+            "used_resume": bool((resume_text or "").strip()),
+            "used_target_job": bool(job_id),
+            "provider": meta.get("provider"),
+            "model": meta.get("model"),
+        }
+        _write_json(chat_dir / "run_summary.json", run_summary)
+
+        return chat_dir

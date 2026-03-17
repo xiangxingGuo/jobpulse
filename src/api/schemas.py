@@ -124,3 +124,27 @@ class ResumeAnalyzeFitResponse(BaseModel):
     skill_gap: SkillGapResult
     report_md: str = ""
     meta: dict[str, Any] = {}
+
+
+class JobMarketChatSource(BaseModel):
+    job_id: str
+    title: str | None = None
+    company: str | None = None
+    reason: str | None = None
+
+
+class JobMarketChatRequest(BaseModel):
+    question: str = Field(..., min_length=3)
+    top_k: int = Field(default=5, ge=1, le=20)
+
+    resume_text: str | None = None
+    job_id: str | None = None
+
+    provider: str = Field(default="openai", pattern="^(openai|nvidia)$")
+    model: str | None = None
+
+
+class JobMarketChatResponse(BaseModel):
+    answer: str
+    sources: list[JobMarketChatSource]
+    meta: dict[str, Any] = {}

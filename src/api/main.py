@@ -11,6 +11,8 @@ from src.api.schemas import (
     AnalyticsSummaryResponse,
     HealthResponse,
     JobDetailResponse,
+    JobMarketChatRequest,
+    JobMarketChatResponse,
     MetricsSummaryResponse,
     RecentRunsResponse,
     ResumeAnalyzeFitRequest,
@@ -29,9 +31,13 @@ from src.db import (
     fetch_metrics_summary,
     fetch_recent_scrape_runs,
 )
-from src.observability.artifact_writer import SkillGapArtifactWriter
+from src.observability.artifact_writer import (
+    JobMarketChatArtifactWriter,
+    SkillGapArtifactWriter,
+)
 from src.resume.parse import extract_resume_text
 from src.retrieval.resume_match import match_resume_to_jobs
+from src.services.job_market_chat_service import JobMarketChatService
 from src.services.job_search_service import JobSearchService
 from src.services.report_service import ReportService
 from src.services.skill_gap_service import SkillGapService
@@ -41,25 +47,31 @@ import uuid
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global _search_service, _skill_gap_service, _report_service
+    global _search_service, _skill_gap_service, _report_service, _job_market_chat_service
     try:
         _search_service = JobSearchService(index_dir=INDEX_DIR)
         _skill_gap_service = SkillGapService(job_search_service=_search_service)
         _report_service = ReportService()
-        print("Search / skill-gap / report services preloaded.")
+        _job_market_chat_service = JobMarketChatService(
+            job_search_service=_search_service,
+            skill_gap_service=_skill_gap_service,
+        )
+        print("Search / skill-gap / report / chat services preloaded.")
     except Exception as e:
         print(f"Failed to preload services: {e}")
         _search_service = None
         _skill_gap_service = None
         _report_service = None
+        _job_market_chat_service = None
     yield
 
 INDEX_DIR = Path("data/vectors")
 SKILL_GAP_ARTIFACTS_DIR = Path(os.getenv("ARTIFACT_DIR", "data/artifacts")) / "skill_gap"
-
+JOB_MARKET_CHAT_ARTIFACTS_DIR = Path(os.getenv("ARTIFACT_DIR", "data/artifacts")) / "job_market_chat"
+_search_service: JobSearchService | None = None
 _skill_gap_service: SkillGapService | None = None
 _report_service: ReportService | None = None
-_search_service: JobSearchService | None = None
+_job_market_chat_service: JobMarketChatService | None = None
 
 app = FastAPI(
     title="JobPulse API",
@@ -67,8 +79,6 @@ app = FastAPI(
     description="Semantic job search and retrieval API for JobPulse",
     lifespan=lifespan,
 )
-
-_search_service: JobSearchService | None = None
 
 
 def get_search_service() -> JobSearchService:
@@ -91,6 +101,14 @@ def get_report_service() -> ReportService:
         _report_service = ReportService()
     return _report_service
 
+def get_job_market_chat_service() -> JobMarketChatService:
+    global _job_market_chat_service
+    if _job_market_chat_service is None:
+        _job_market_chat_service = JobMarketChatService(
+            job_search_service=get_search_service(),
+            skill_gap_service=get_skill_gap_service(),
+        )
+    return _job_market_chat_service
 
 @app.get("/health", response_model=HealthResponse)
 def health() -> HealthResponse:
@@ -312,4 +330,63 @@ async def resume_parse(file: UploadFile = File(...)) -> ResumeParseResponse:
         text_preview=" ".join(text.split())[:300],
         chars=len(text),
         resume_text=text,
+    )
+
+@app.post("/chat/job-market", response_model=JobMarketChatResponse)
+async def job_market_chat(req: JobMarketChatRequest) -> JobMarketChatResponse:
+    svc = get_job_market_chat_service()
+
+    try:
+        out = await svc.chat(
+            question=req.question,
+            top_k=req.top_k,
+            resume_text=req.resume_text,
+            job_id=req.job_id,
+            provider=req.provider,
+            model=req.model,
+            temperature=0.2,
+            max_tokens=1200,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"job market chat failed: {e}")
+
+    artifact_meta: dict[str, object] = {}
+
+    try:
+        artifact_run_id = uuid.uuid4().hex[:10]
+        artifact_writer = JobMarketChatArtifactWriter(JOB_MARKET_CHAT_ARTIFACTS_DIR)
+
+        artifact_dir = artifact_writer.write(
+            run_id=artifact_run_id,
+            question=req.question,
+            answer=out.get("answer", ""),
+            sources=out.get("sources", []),
+            meta={
+                **(out.get("meta") or {}),
+                "provider": req.provider,
+                "model": req.model,
+            },
+            artifacts=out.get("artifacts") or {},
+            resume_text=req.resume_text,
+            job_id=req.job_id,
+        )
+
+        artifact_meta = {
+            "artifact_run_id": artifact_run_id,
+            "artifact_dir": str(artifact_dir),
+        }
+    except Exception as e:
+        artifact_meta = {
+            "artifact_error": str(e),
+        }
+
+    return JobMarketChatResponse(
+        answer=out.get("answer", ""),
+        sources=out.get("sources", []),
+        meta={
+            **(out.get("meta") or {}),
+            **artifact_meta,
+        },
     )

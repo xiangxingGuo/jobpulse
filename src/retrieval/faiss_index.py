@@ -29,6 +29,8 @@ class JobFaissIndex:
         for score, idx in zip(scores[0], ids[0]):
             if idx < 0:
                 continue
+            if idx >= len(self.meta):
+                continue
             results.append(
                 {
                     "score": float(score),
@@ -57,5 +59,13 @@ class JobFaissIndex:
 
         with (out_dir / "meta.jsonl").open("r", encoding="utf-8") as f:
             obj.meta = [json.loads(line) for line in f if line.strip()]
+
+        index_size = obj.index.ntotal
+        meta_size = len(obj.meta)
+        if index_size != meta_size:
+            raise ValueError(
+                f"FAISS index/meta mismatch: index.ntotal={index_size}, meta_rows={meta_size}. "
+                "Rebuild the vector index using scripts/build_vector_index.py"
+            )
 
         return obj

@@ -9,6 +9,7 @@ from src.ui.views.search import render_search_page
 from src.ui.views.analytics import render_analytics_page
 from src.ui.views.pipeline import render_pipeline_page
 from src.ui.views.resume_match import render_resume_match_page
+from src.ui.views.job_market_chat import render_job_market_chat_page
 
 
 st.set_page_config(page_title="JobPulse", layout="wide")
@@ -18,8 +19,8 @@ render_header()
 
 page = st.sidebar.radio(
     "Navigate",
-    ["Overview", "Search", "Analytics", "Pipeline", "Resume Match"],
-    index=["Overview", "Search", "Analytics", "Pipeline", "Resume Match"].index(st.session_state.page)
+    ["Overview", "Search", "Analytics", "Pipeline", "Resume Match", "Job Market Chat"],
+    index=["Overview", "Search", "Analytics", "Pipeline", "Resume Match", "Job Market Chat"].index(st.session_state.page)
 )
 
 st.session_state.page = page
@@ -34,3 +35,5 @@ elif page == "Pipeline":
     render_pipeline_page()
 elif page == "Resume Match":
     render_resume_match_page()
+elif page == "Job Market Chat":
+    render_job_market_chat_page()
