@@ -148,3 +148,18 @@ class JobMarketChatResponse(BaseModel):
     answer: str
     sources: list[JobMarketChatSource]
     meta: dict[str, Any] = {}
+
+
+class LexSkillGapRequest(BaseModel):
+    target_role: str = Field(..., min_length=2)
+    experience_level: str | None = None
+    candidate_background: str = Field(..., min_length=10)
+    top_k: int = Field(default=5, ge=1, le=10)
+    provider: str = Field(default="openai", pattern="^(openai|nvidia)$")
+    model: str | None = None
+
+
+class LexSkillGapResponse(BaseModel):
+    answer: str
+    sources: list[JobMarketChatSource] = []
+    meta: dict[str, Any] = {}

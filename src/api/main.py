@@ -24,6 +24,8 @@ from src.api.schemas import (
     SearchResponse,
     SearchResult,
     SimilarResponse,
+    LexSkillGapRequest,
+    LexSkillGapResponse,
 )
 from src.db import (
     fetch_analytics_summary,
@@ -389,4 +391,39 @@ async def job_market_chat(req: JobMarketChatRequest) -> JobMarketChatResponse:
             **(out.get("meta") or {}),
             **artifact_meta,
         },
+    )
+
+@app.post("/lex/analyze-skill-gap", response_model=LexSkillGapResponse)
+async def lex_analyze_skill_gap(req: LexSkillGapRequest) -> LexSkillGapResponse:
+    svc = get_job_market_chat_service()
+
+    question = (
+        f"I am targeting a {req.target_role} role. "
+        f"My experience level is {req.experience_level or 'unspecified'}. "
+        f"My background is: {req.candidate_background}. "
+        "Based on the current job market, what skills am I likely missing, "
+        "what are the biggest gaps, and what should I learn next? "
+        "Keep the answer concise and practical."
+    )
+
+    try:
+        out = await svc.chat(
+            question=question,
+            top_k=req.top_k,
+            resume_text=req.candidate_background,
+            job_id=None,
+            provider=req.provider,
+            model=req.model,
+            temperature=0.2,
+            max_tokens=700,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"lex skill gap analysis failed: {e}")
+
+    return LexSkillGapResponse(
+        answer=out.get("answer", ""),
+        sources=out.get("sources", []),
+        meta=out.get("meta", {}) or {},
     )
