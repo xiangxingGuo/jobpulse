@@ -14,6 +14,7 @@ services:
       - NVIDIA_API_KEY=${NVIDIA_API_KEY}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - HF_TOKEN=${HF_TOKEN}
+      - JOBPULSE_SERVERLESS_API_BASE=${JOBPULSE_SERVERLESS_API_BASE}
     restart: unless-stopped
 
   ui:
@@ -28,6 +29,7 @@ services:
     environment:
       - PYTHONPATH=/app
       - JOBPULSE_API_BASE=http://api:8000
+      - JOBPULSE_SERVERLESS_API_BASE=${JOBPULSE_SERVERLESS_API_BASE}
     depends_on:
       - api
     restart: unless-stopped
