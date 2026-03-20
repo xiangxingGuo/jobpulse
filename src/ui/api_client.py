@@ -196,3 +196,86 @@ def analyze_skill_gap_serverless(
         )
 
     return r.json()
+
+
+def start_career_session() -> dict:
+    base = os.getenv("JOBPULSE_SERVERLESS_API_BASE")
+    if not base:
+        raise RuntimeError("Missing JOBPULSE_SERVERLESS_API_BASE env var")
+
+    r = requests.post(
+        f"{base}/career/session/start",
+        json={},
+        timeout=30,
+        headers={
+            "Content-Type": "application/json",
+            "User-Agent": "Mozilla/5.0",
+            "Accept": "application/json"
+        }
+    )
+
+    if not r.ok:
+        try:
+            detail = r.json()
+        except Exception:
+            detail = {"raw_text": r.text}
+        raise RuntimeError(
+            f"/career/session/start failed: status={r.status_code}, detail={detail}"
+        )
+
+    return r.json()
+
+
+def send_career_message(session_id: str, message: str) -> dict:
+    base = os.getenv("JOBPULSE_SERVERLESS_API_BASE")
+    if not base:
+        raise RuntimeError("Missing JOBPULSE_SERVERLESS_API_BASE env var")
+
+    r = requests.post(
+        f"{base}/career/session/message",
+        json={"session_id": session_id, "message": message},
+        timeout=60,
+        headers={
+            "Content-Type": "application/json",
+            "User-Agent": "Mozilla/5.0",
+            "Accept": "application/json"
+        }
+    )
+
+    if not r.ok:
+        try:
+            detail = r.json()
+        except Exception:
+            detail = {"raw_text": r.text}
+        raise RuntimeError(
+            f"/career/session/message failed: status={r.status_code}, detail={detail}"
+        )
+
+    return r.json()
+
+
+def get_career_session(session_id: str) -> dict:
+    base = os.getenv("JOBPULSE_SERVERLESS_API_BASE")
+    if not base:
+        raise RuntimeError("Missing JOBPULSE_SERVERLESS_API_BASE env var")
+
+    r = requests.get(
+        f"{base}/career/session/{session_id}",
+        timeout=30,
+        headers={
+            "Content-Type": "application/json",
+            "User-Agent": "Mozilla/5.0",
+            "Accept": "application/json"
+        }
+    )
+
+    if not r.ok:
+        try:
+            detail = r.json()
+        except Exception:
+            detail = {"raw_text": r.text}
+        raise RuntimeError(
+            f"/career/session/{session_id} failed: status={r.status_code}, detail={detail}"
+        )
+
+    return r.json()
