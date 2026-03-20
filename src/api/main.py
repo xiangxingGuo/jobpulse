@@ -397,20 +397,35 @@ async def job_market_chat(req: JobMarketChatRequest) -> JobMarketChatResponse:
 async def lex_analyze_skill_gap(req: LexSkillGapRequest) -> LexSkillGapResponse:
     svc = get_job_market_chat_service()
 
-    question = (
-        f"I am targeting a {req.target_role} role. "
-        f"My experience level is {req.experience_level or 'unspecified'}. "
-        f"My background is: {req.candidate_background}. "
+    background_text = (req.candidate_background or "").strip()
+    resume_text = (req.resume_text or "").strip()
+
+    question_parts = [
+        f"I am targeting a {req.target_role} role.",
+        f"My experience level is {req.experience_level or 'unspecified'}.",
+    ]
+
+    if background_text:
+        question_parts.append(f"My background is: {background_text}.")
+
+    if resume_text:
+        question_parts.append(
+            "Use my uploaded resume as additional grounding for the analysis."
+        )
+
+    question_parts.append(
         "Based on the current job market, what skills am I likely missing, "
         "what are the biggest gaps, and what should I learn next? "
         "Keep the answer concise and practical."
     )
 
+    question = " ".join(question_parts)
+
     try:
         out = await svc.chat(
             question=question,
             top_k=req.top_k,
-            resume_text=req.candidate_background,
+            resume_text=resume_text or background_text or None,
             job_id=None,
             provider=req.provider,
             model=req.model,

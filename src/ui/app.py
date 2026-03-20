@@ -18,13 +18,27 @@ st.set_page_config(page_title="JobPulse", layout="wide")
 init_state()
 render_header()
 
+pages = [
+    "Overview",
+    "Search",
+    "Analytics",
+    "Pipeline",
+    "Resume Match",
+    "Job Market Chat",
+    "AWS Career Coach",
+]
+
+query_page = st.query_params.get("page", None)
+default_page = query_page if query_page in pages else st.session_state.get("page", "Overview")
+
 page = st.sidebar.radio(
     "Navigate",
-    ["Overview", "Search", "Analytics", "Pipeline", "Resume Match", "Job Market Chat", "AWS Career Coach"],
-    index=["Overview", "Search", "Analytics", "Pipeline", "Resume Match", "Job Market Chat", "AWS Career Coach"].index(st.session_state.page)
+    pages,
+    index=pages.index(default_page),
 )
 
-st.session_state.page = page
+st.session_state["page"] = page
+st.query_params["page"] = page
 
 if page == "Overview":
     render_overview_page()

@@ -226,20 +226,27 @@ def start_career_session() -> dict:
     return r.json()
 
 
-def send_career_message(session_id: str, message: str) -> dict:
+def send_career_message(
+    session_id: str,
+    message: str,
+    resume_text: str | None = None,
+) -> dict:
     base = os.getenv("JOBPULSE_SERVERLESS_API_BASE")
     if not base:
         raise RuntimeError("Missing JOBPULSE_SERVERLESS_API_BASE env var")
 
+    payload = {
+        "session_id": session_id,
+        "message": message,
+    }
+
+    if resume_text:
+        payload["resume_text"] = resume_text
+
     r = requests.post(
         f"{base}/career/session/message",
-        json={"session_id": session_id, "message": message},
+        json=payload,
         timeout=60,
-        headers={
-            "Content-Type": "application/json",
-            "User-Agent": "Mozilla/5.0",
-            "Accept": "application/json"
-        }
     )
 
     if not r.ok:

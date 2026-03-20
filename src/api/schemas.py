@@ -157,6 +157,7 @@ class LexSkillGapRequest(BaseModel):
     top_k: int = Field(default=5, ge=1, le=10)
     provider: str = Field(default="openai", pattern="^(openai|nvidia)$")
     model: str | None = None
+    resume_text: str | None = None
 
 
 class LexSkillGapResponse(BaseModel):
