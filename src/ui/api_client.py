@@ -156,3 +156,43 @@ def job_market_chat(
         )
 
     return r.json()
+
+
+def analyze_skill_gap_serverless(
+    target_role: str,
+    experience_level: str,
+    candidate_background: str,
+    api_base: str | None = None,
+) -> dict:
+    base = api_base or os.getenv("JOBPULSE_SERVERLESS_API_BASE")
+
+    if not base:
+        raise RuntimeError("Missing JOBPULSE_SERVERLESS_API_BASE env var")
+
+    payload = {
+        "target_role": target_role,
+        "experience_level": experience_level,
+        "candidate_background": candidate_background,
+    }
+
+    r = requests.post(
+        f"{base}/career/analyze-skill-gap",
+        json=payload,
+        timeout=60,
+        headers={
+            "Content-Type": "application/json",
+            "User-Agent": "Mozilla/5.0",
+            "Accept": "application/json"
+        }
+    )
+
+    if not r.ok:
+        try:
+            detail = r.json()
+        except Exception:
+            detail = {"raw_text": r.text}
+        raise RuntimeError(
+            f"serverless skill gap failed: status={r.status_code}, detail={detail}"
+        )
+
+    return r.json()
