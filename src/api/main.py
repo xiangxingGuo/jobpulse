@@ -400,6 +400,12 @@ async def lex_analyze_skill_gap(req: LexSkillGapRequest) -> LexSkillGapResponse:
     background_text = (req.candidate_background or "").strip()
     resume_text = (req.resume_text or "").strip()
 
+    if not background_text and not resume_text:
+        raise HTTPException(
+            status_code=400,
+            detail="Either candidate_background or resume_text must be provided."
+        )
+
     question_parts = [
         f"I am targeting a {req.target_role} role.",
         f"My experience level is {req.experience_level or 'unspecified'}.",

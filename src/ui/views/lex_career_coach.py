@@ -7,7 +7,57 @@ from src.ui.api_client import (
     send_career_message,
     get_career_session,
     parse_resume_file,
+    match_resume,
 )
+
+
+def _render_resume_match_results(result: dict) -> None:
+    resume_profile = result.get("resume_profile", {}) or {}
+    matches = result.get("matches", []) or []
+
+    st.markdown("### Matching jobs from your resume")
+
+    skills = resume_profile.get("skills", []) or []
+    if skills:
+        st.caption("Detected resume skills: " + ", ".join(skills[:15]))
+
+    if not matches:
+        st.info("No matching jobs found.")
+        return
+
+    for i, job in enumerate(matches, start=1):
+        title = job.get("title") or "Untitled role"
+        company = job.get("company") or "Unknown company"
+        location = job.get("location") or "Unknown location"
+        url = job.get("url")
+        semantic_score = job.get("semantic_score")
+        shared_skills = job.get("shared_skills", []) or []
+        missing_skills = job.get("missing_skills", []) or []
+        reasons = job.get("match_reasons", []) or []
+
+        with st.container():
+            st.markdown(f"**{i}. {title}**")
+            st.write(f"**Company:** {company}")
+            st.write(f"**Location:** {location}")
+
+            if semantic_score is not None:
+                st.write(f"**Match score:** {semantic_score:.3f}")
+
+            if shared_skills:
+                st.write("**Shared skills:** " + ", ".join(shared_skills[:10]))
+
+            if missing_skills:
+                st.write("**Missing skills:** " + ", ".join(missing_skills[:10]))
+
+            if reasons:
+                st.write("**Why this matches:**")
+                for reason in reasons[:3]:
+                    st.write(f"- {reason}")
+
+            if url:
+                st.markdown(f"[Open job posting]({url})")
+
+            st.divider()
 
 
 def render_lex_career_coach_page() -> None:
@@ -26,6 +76,12 @@ def render_lex_career_coach_page() -> None:
     if "aws_resume_filename" not in st.session_state:
         st.session_state["aws_resume_filename"] = None
 
+    if "aws_resume_match_result" not in st.session_state:
+        st.session_state["aws_resume_match_result"] = None
+
+    if "aws_resume_match_error" not in st.session_state:
+        st.session_state["aws_resume_match_error"] = None
+
     uploaded_file = st.file_uploader(
         "Upload your resume",
         type=["pdf", "docx", "txt"],
@@ -40,10 +96,12 @@ def render_lex_career_coach_page() -> None:
                         filename=uploaded_file.name,
                         file_bytes=uploaded_file.getvalue(),
                     )
-                    resume_text = (out.get("text") or "").strip()
+                    resume_text = (out.get("resume_text") or "").strip()
 
                     st.session_state["aws_resume_text"] = resume_text or None
                     st.session_state["aws_resume_filename"] = uploaded_file.name
+                    st.session_state["aws_resume_match_result"] = None
+                    st.session_state["aws_resume_match_error"] = None
 
                     st.success("Resume uploaded and parsed successfully.")
                 except Exception as e:
@@ -90,6 +148,8 @@ def render_lex_career_coach_page() -> None:
                 {"role": "assistant", "content": out["reply"]}
             ]
             st.session_state["aws_coach_done"] = bool(out.get("done", False))
+            st.session_state["aws_resume_match_result"] = None
+            st.session_state["aws_resume_match_error"] = None
             st.query_params["page"] = "AWS Career Coach"
             st.query_params["career_session_id"] = out["session_id"]
             st.rerun()
@@ -101,6 +161,8 @@ def render_lex_career_coach_page() -> None:
         st.session_state["aws_coach_session_id"] = None
         st.session_state["aws_coach_messages"] = []
         st.session_state["aws_coach_done"] = False
+        st.session_state["aws_resume_match_result"] = None
+        st.session_state["aws_resume_match_error"] = None
         st.query_params["page"] = "AWS Career Coach"
         st.query_params["career_session_id"] = ""
         st.rerun()
@@ -114,7 +176,51 @@ def render_lex_career_coach_page() -> None:
             st.write(msg["content"])
 
     if st.session_state["aws_coach_done"]:
-        st.success("Conversation completed. Start a new conversation to run another analysis.")
+        st.success("Conversation completed.")
+
+        resume_text = st.session_state.get("aws_resume_text")
+
+        c1, c2 = st.columns([2, 1])
+
+        with c1:
+            if resume_text:
+                if st.button("Find matching jobs from your resume", use_container_width=True):
+                    with st.spinner("Finding matching jobs from your resume..."):
+                        try:
+                            result = match_resume(resume_text=resume_text, top_k=5)
+                            st.session_state["aws_resume_match_result"] = result
+                            st.session_state["aws_resume_match_error"] = None
+                        except Exception as e:
+                            st.session_state["aws_resume_match_result"] = None
+                            st.session_state["aws_resume_match_error"] = str(e)
+                    st.rerun()
+            else:
+                st.info("Upload a resume to enable job matching.")
+
+        with c2:
+            if st.button("Start New Conversation", use_container_width=True, key="done_start_new"):
+                try:
+                    out = start_career_session()
+                    st.session_state["aws_coach_session_id"] = out["session_id"]
+                    st.session_state["aws_coach_messages"] = [
+                        {"role": "assistant", "content": out["reply"]}
+                    ]
+                    st.session_state["aws_coach_done"] = bool(out.get("done", False))
+                    st.session_state["aws_resume_match_result"] = None
+                    st.session_state["aws_resume_match_error"] = None
+                    st.query_params["page"] = "AWS Career Coach"
+                    st.query_params["career_session_id"] = out["session_id"]
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Failed to start conversation: {e}")
+                    return
+
+        if st.session_state.get("aws_resume_match_error"):
+            st.error(f"Resume match failed: {st.session_state['aws_resume_match_error']}")
+
+        if st.session_state.get("aws_resume_match_result"):
+            _render_resume_match_results(st.session_state["aws_resume_match_result"])
+
         return
 
     user_input = st.chat_input("Type your answer...")
