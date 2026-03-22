@@ -1,141 +1,96 @@
 # JobPulse
 
-> **From raw job postings → structured intelligence → personalized career decisions.**
+> From raw job postings → structured intelligence → personalized career decisions.
 
-JobPulse is a **production-grade LLM system** that transforms unstructured job data into:
+JobPulse is a **production-grade AI system** that combines:
 
-- 📊 structured job intelligence
-- 🔍 semantic search & retrieval
-- 🧠 personalized career insights
+- LLM pipelines
+- Retrieval-Augmented Generation (RAG)
+- Cloud-native backend services
+- Conversational AI (AWS Lex)
 
-It demonstrates how modern AI systems are actually built in production:
+to build an **intelligent career decision platform**.
 
-> **LLM pipelines + retrieval systems + user-facing intelligence layer**
+---
 
-------
+# 🔥 Features
+
+- 🔍 Semantic Job Search (RAG-powered with FAISS)
+- 📄 Resume → Job Matching (with explainable reasoning)
+- 🧠 Skill Gap Analysis (actionable recommendations)
+- 💬 Conversational Career Assistant (multi-turn dialogue via Amazon Lex)
+- ☁️ Serverless AI APIs (AWS Lambda + API Gateway)
+- 🔘 One-click "Find matching jobs from your resume"
+
+---
 
 # 🌐 Live Demo
 
 👉 https://jobspulse.org/
 
-**Status:** Auto-updating every 6 hours
-**Stack:** Full pipeline + RAG + UI deployed
+**Status:** Auto-updating every 6 hours  
+**Stack:** Full pipeline + RAG + UI + Cloud Integration
 
-------
+---
 
-# ✨ Why JobPulse Exists
+# 📸 Product Preview
 
-Most job platforms (LinkedIn, Indeed):
+## 🔍 Job Search (RAG)
 
-- ❌ keyword search only
-- ❌ no understanding of candidates
-- ❌ no reasoning about fit
+![alt text](images/search.png)
 
-JobPulse changes the paradigm:
+---
 
-> **Search → Understanding → Intelligence**
+## 📄 Resume Matching
 
-It doesn’t just list jobs —
-it **reasons about them and about you**.
+![alt text](images/match1.png)
+![alt text](images/match2.png)
+![alt text](images/match3.png)
 
-------
+---
 
-# 🧠 What Makes JobPulse Different
+## 🧠 Skill Gap Analysis
 
-## 1. Structured Understanding (Not Just Text)
+![alt text](images/report1.png)
+![alt text](images/report2.png)
+---
 
-```text
-raw job description
-→ LLM extraction
-→ structured schema
-→ validated output
-```
+## One Ture Job Market Chat (OpenAI)
+![alt text](images/onechat1.png)
 
-Every job becomes machine-readable intelligence:
+## 💬 Conversational AI (Amazon Lex)
 
-- skills
-- requirements
-- experience levels
-- responsibilities
+![alt text](images/multichat1.png)
 
-------
 
-## 2. Retrieval System (RAG Core)
+### Extra Features
+![alt text](images/multichat2.png)
+---
 
-```text
-job data
-→ embeddings
-→ FAISS index
-→ semantic retrieval
-```
+# 🧪 Example: Resume → Job Matching
 
-Used for:
+**Input Resume (summary):**
 
-- job search
-- resume matching
-- career insights
-- chat interface
+- Python, SQL, ML basics  
+- 2 years experience  
 
-------
+**Output:**
 
-## 3. Career Intelligence Layer ⭐
+Top Matches:
 
-This is where JobPulse becomes **a product, not just a pipeline**.
+- ML Engineer (78%)
+- Data Analyst (72%)
 
-------
+Missing Skills:
 
-### 🔍 Resume → Job Matching
+- Deep Learning
+- System Design
 
-```text
-resume
-→ skill extraction
-→ embedding query
-→ FAISS search
-→ ranking + reasoning
-```
+Reasoning:
 
-Outputs:
+- Strong data background but lacks production ML experience
 
-- best matching jobs
-- shared skills
-- missing skills
-- explainable reasoning
-
-------
-
-### 🧠 Skill Gap Analyzer
-
-```text
-resume vs job
-→ skill diff
-→ gap detection
-→ recommendations
-```
-
-Gives:
-
-- what you're missing
-- what to learn next
-- how far you are from a role
-
-------
-
-### 💬 RAG Career Chat
-
-```text
-user question
-→ vector retrieval
-→ context injection
-→ LLM reasoning
-```
-
-Ask things like:
-
-- “What skills am I missing for ML roles?”
-- “Which jobs fit my background best?”
-- “What are my risks for this role?”
-
-------
+---
 
 # 🏗 System Architecture
 
@@ -146,124 +101,133 @@ A[Job Scraping] --> B[SQLite]
 
 B --> C[LLM Extraction]
 
-C -->|Local Model| D[Structured Data]
-C -->|API Fallback| D
+C --> D[Structured Data]
 
 D --> E[QC Validation]
 
-E -->|Pass| F[Reports]
-E -->|Fail| G[Retry / Fallback]
+E --> F[Reports]
 
-B --> H[Embedding Model]
-H --> I[FAISS Index]
+B --> G[Embeddings]
 
-I --> J[Semantic Retrieval]
+G --> H[FAISS Index]
 
-J --> K[Intelligence Layer]
+H --> I[Semantic Retrieval]
 
-K --> L[
+I --> J[Intelligence Layer]
+
+J --> K[
+Resume Match
 Skill Gap
-Resume Matching
 RAG Chat
 ]
+
+J --> L[AWS Lambda APIs]
+
+L --> M[Amazon Lex]
+
+M --> N[Multi-turn Conversations]
 ```
 
-------
+---
 
-# 🔁 End-to-End Flow
+# ☁️ Cloud Architecture (AWS)
 
-```text
-Scraping
-→ Extraction
-→ QC Validation
-→ Embeddings
-→ Retrieval
-→ Intelligence Layer
-→ User Insights
+```
+User (Web / Chatbot)
+→ Amazon Lex
+→ API Gateway
+→ AWS Lambda
+→ RAG + Matching + Skill Gap services
+→ FAISS / SQLite
 ```
 
-------
+---
 
-# ⚙️ Pipeline (Production Style)
+# 🧠 Core Capabilities
 
-### Automated every 6 hours:
+## 1. LLM Structured Extraction
 
-```text
+```
+raw job description
+→ LLM
+→ structured schema
+→ QC validation
+```
+
+---
+
+## 2. Retrieval-Augmented Generation (RAG)
+
+```
+query
+→ embeddings
+→ FAISS
+→ retrieved context
+→ LLM reasoning
+```
+
+---
+
+## 3. Resume Intelligence
+
+```
+resume
+→ skill extraction
+→ vector search
+→ ranking + reasoning
+```
+
+---
+
+## 4. Conversational AI (Amazon Lex)
+
+```
+user input
+→ intent recognition
+→ Lambda backend
+→ RAG + reasoning
+→ contextual response
+```
+
+Supports:
+
+- multi-turn dialogue
+- context-aware responses
+- career guidance workflows
+
+---
+
+# ⚙️ Pipeline (Automated)
+
+Runs every 6 hours:
+
+```
 scrape jobs
-→ update DB
+→ extract structure
+→ validate
 → build embeddings
-→ rebuild FAISS index
+→ update FAISS
 ```
 
-------
+---
 
-### Core scripts
+# 🛡 Reliability Design
 
-| Step          | Script                  |
-| ------------- | ----------------------- |
-| Scraping      | `run_pipeline.py`       |
-| Embedding     | `build_vector_index.py` |
-| Orchestration | `daily_update.py`       |
-
-------
-
-# 🤖 LangGraph Orchestration
-
-Core workflow:
-
-```text
-fetch → extract → qc → report → finalize
-```
-
-Features:
-
-- local-first routing
+- Local-first LLM inference
 - automatic API fallback
-- retry logic
-- structured state
+- schema validation (QC gate)
+- JSON repair pipeline
 
-------
+---
 
-# 🛡 Reliability Design (Real Production Pattern)
-
-## Local-first Inference
-
-```text
-local model
-→ QC
-→ fallback API
-```
-
-------
-
-## QC Validation Gate
-
-- required fields
-- non-empty values
-- schema validation
-- JSON correctness
-
-------
-
-## JSON Hardening
-
-- repair malformed outputs
-- recover partial generations
-- sanitize tokens
-
-------
-
-# 📊 Observability (Underrated but Critical)
+# 📊 Observability
 
 Each run produces:
 
-```text
-structured.json
-qc.json
-trace.json
-report.md
-run_summary.json
-```
+- structured.json
+- qc.json
+- trace.json
+- report.md
 
 Stored in:
 
@@ -271,131 +235,62 @@ Stored in:
 data/artifacts/
 ```
 
-This enables:
-
-- debugging
-- reproducibility
-- auditability
-
-------
-
-# 🔍 Vector Search
-
-```text
-query
-→ embedding
-→ similarity search
-→ ranked jobs
-```
-
-Backed by:
-
-- FAISS
-- dense embeddings
-
-------
+---
 
 # 🧩 Tech Stack
 
-**Core:**
+**AI / ML:**
 
-- Python
-- HuggingFace Transformers
-- PEFT (LoRA)
+- LLM (local + API)
+- HuggingFace + LoRA
+- RAG pipeline
 
-**LLM Infra:**
-
-- LangGraph
-- local + API routing
-
-**Data & Retrieval:**
+**Retrieval:**
 
 - FAISS
+- embeddings
+
+**Backend:**
+
+- FastAPI
+- AWS Lambda
+- API Gateway
+
+**Conversational AI:**
+
+- Amazon Lex (multi-turn dialogue)
+
+**Data:**
+
 - SQLite
-
-**Scraping:**
-
-- Playwright
+- DynamoDB
 
 **Infra:**
 
 - Docker
-- Nginx
-- Cloudflare
 
-------
+---
 
 # 🚀 How to Run
-
-### 1. Install
 
 ```bash
 uv sync
 python -m playwright install --with-deps
-```
-
-------
-
-### 2. Run pipeline
-
-```bash
 uv run python scripts/run_pipeline.py
-```
-
-------
-
-### 3. Build index
-
-```bash
 uv run python scripts/build_vector_index.py
 ```
 
-------
+---
 
-### 4. Run graph
+# 🆕 Recent Updates
 
-```bash
-uv run python scripts/run_graph_one.py --job-id 10704289
-```
+- Integrated AWS Lambda for serverless AI APIs
+- Added Amazon Lex multi-turn conversational interface
+- Enabled resume → job matching via chatbot interaction
 
-------
+---
 
-# 🧠 LoRA Fine-Tuning
-
-```bash
-uv run python src/training/train_lora.py
-```
-
-Improves structured extraction quality.
-
-------
-
-# 🎯 Engineering Highlights
-
-This project demonstrates:
-
-- production-grade LLM pipeline
-- retrieval-augmented generation (RAG)
-- local-first inference architecture
-- structured schema validation
-- artifact-based observability
-- resume-aware intelligence
-- semantic search system
-
-------
-
-# 🔮 Future Work
-
-- incremental embeddings (no full rebuild)
-- resume upload UI
-- analytics dashboard
-- distributed scraping
-- monitoring & metrics
-- multi-agent orchestration
-
-------
-
-# 🧠 Why This Project Matters
+# 🎯 Why This Project Matters
 
 Most systems stop at:
 
@@ -409,25 +304,10 @@ JobPulse goes further:
 
 → turning data into **decisions**
 
-------
-
-# 👤 Ideal Use Cases
-
-- job seekers optimizing applications
-- students planning career paths
-- AI engineers learning production LLM systems
-- recruiters analyzing talent gaps
-
-------
+---
 
 # ⭐ Final Takeaway
 
-JobPulse is not:
+JobPulse is:
 
-- just a scraper
-- just a search engine
-- just a chatbot
-
-It is:
-
-> **A full-stack AI system for career intelligence**
+> **A full-stack AI + cloud system combining RAG, serverless architecture, and conversational AI**
