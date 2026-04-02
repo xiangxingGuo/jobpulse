@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Tuple
 
 from src.db import get_conn, init_db
 from src.text_clean.jd_clean import clean_jd
@@ -58,7 +58,7 @@ def main() -> None:
         finished_job_ids.update(p.stem for p in raw_dir.glob("*.txt"))
     if clean_dir.exists():
         finished_job_ids.update(p.stem for p in clean_dir.glob("*.txt"))
-    
+
     rows = conn.execute(
         """
         SELECT job_id, description

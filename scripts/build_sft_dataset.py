@@ -1,12 +1,9 @@
 import json
 import random
 from pathlib import Path
-from typing import Dict, Any, List, Tuple
+from typing import Any, Dict, List, Tuple
 
-from src.eval.extraction_metrics import (
-    REQUIRED_KEYS, LIST_KEYS
-)
-
+from src.eval.extraction_metrics import LIST_KEYS, REQUIRED_KEYS
 
 PROMPT_PATH = Path("src/llm/prompts/jd_extract_v2.txt")
 
@@ -51,7 +48,7 @@ def make_example(job_id: str, jd_text: str, teacher: Dict[str, Any]) -> Dict[str
             {"role": "system", "content": SYSTEM_MSG},
             {"role": "user", "content": prompt},
             {"role": "assistant", "content": assistant},
-        ]
+        ],
     }
 
 
@@ -110,20 +107,24 @@ def main(seed: int = 42, val_size: int = 60) -> None:
     # gold template: same as val candidates, but assistant left empty for manual labeling
     for job_id, jd_path in val_pairs:
         jd_text = jd_path.read_text()
-        gold_lines.append({
-            "id": job_id,
-            "messages": [
-                {"role": "system", "content": SYSTEM_MSG},
-                {"role": "user", "content": build_prompt(jd_text)},
-                {"role": "assistant", "content": ""}  # you fill this manually later
-            ],
-            "notes": "Fill assistant with STRICT JSON matching the schema."
-        })
+        gold_lines.append(
+            {
+                "id": job_id,
+                "messages": [
+                    {"role": "system", "content": SYSTEM_MSG},
+                    {"role": "user", "content": build_prompt(jd_text)},
+                    {"role": "assistant", "content": ""},  # you fill this manually later
+                ],
+                "notes": "Fill assistant with STRICT JSON matching the schema.",
+            }
+        )
 
     # write jsonl
     OUT_TRAIN.write_text("\n".join(json.dumps(x, ensure_ascii=False) for x in train_lines) + "\n")
     OUT_VAL.write_text("\n".join(json.dumps(x, ensure_ascii=False) for x in val_lines) + "\n")
-    OUT_GOLD_TEMPLATE.write_text("\n".join(json.dumps(x, ensure_ascii=False) for x in gold_lines) + "\n")
+    OUT_GOLD_TEMPLATE.write_text(
+        "\n".join(json.dumps(x, ensure_ascii=False) for x in gold_lines) + "\n"
+    )
 
     print("✅ Dataset built")
     print(f"Train: {len(train_lines)} -> {OUT_TRAIN}")

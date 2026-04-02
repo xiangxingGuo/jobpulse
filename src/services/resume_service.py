@@ -5,7 +5,6 @@ from typing import Iterable
 
 from src.schemas.skill_gap import ResumeProfile
 
-
 # ------------------------------------------------------------
 # Canonical skill sets (baseline extraction)
 # ------------------------------------------------------------
@@ -73,6 +72,7 @@ RESEARCH_SIGNALS = {
 # Helper functions
 # ------------------------------------------------------------
 
+
 def _normalize_text(text: str) -> str:
     return text.lower()
 
@@ -97,6 +97,7 @@ def _preview(text: str, max_chars: int = 600) -> str:
 # ------------------------------------------------------------
 # Resume Service
 # ------------------------------------------------------------
+
 
 class ResumeService:
     """

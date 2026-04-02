@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
@@ -8,7 +9,6 @@ import numpy as np
 from src.db import fetch_jobs_for_retrieval
 from src.retrieval.embed import EmbeddingModel
 from src.retrieval.faiss_index import JobFaissIndex
-from functools import lru_cache
 
 DEFAULT_INDEX_DIR = Path("data/vectors")
 
@@ -28,11 +28,9 @@ class JobSearchService:
             str(m["job_id"]): m for m in self.index.meta if m.get("job_id")
         }
         self.rowid_by_job_id: dict[str, int] = {
-            str(m["job_id"]): i
-            for i, m in enumerate(self.index.meta)
-            if m.get("job_id")
+            str(m["job_id"]): i for i, m in enumerate(self.index.meta) if m.get("job_id")
         }
-    
+
     @lru_cache(maxsize=128)
     def _encode_query_cached(self, query: str) -> tuple[float, ...]:
         vec = self.model.encode([query])

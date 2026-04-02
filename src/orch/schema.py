@@ -3,12 +3,10 @@ This module currently serves MCP/tool-side schemas and legacy typed models.
 LangGraph runtime state is currently defined and enforced in graph.py.
 """
 
-
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Literal, Optional, TypedDict
-
 
 # ----------------------------
 # Core schema for extracted job
@@ -38,18 +36,20 @@ JobStructured = TypedDict(
 # Quality control output
 # ----------------------------
 
+
 class QCResult(TypedDict, total=True):
     status: Literal["pass", "fail"]
-    issues: List[str]                 # human-readable reasons
-    missing_or_empty: List[str]       # keys that are missing or empty
-    coverage: Dict[str, float]        # per-field non-empty indicator (0/1 for single job)
-    parse_repaired: bool              # whether repair_json happened
-    extractor: Dict[str, Any]         # model meta: local/api model, lora path, etc.
+    issues: List[str]  # human-readable reasons
+    missing_or_empty: List[str]  # keys that are missing or empty
+    coverage: Dict[str, float]  # per-field non-empty indicator (0/1 for single job)
+    parse_repaired: bool  # whether repair_json happened
+    extractor: Dict[str, Any]  # model meta: local/api model, lora path, etc.
 
 
 # ----------------------------
 # Tool contracts (MCP)
 # ----------------------------
+
 
 # 1) Fetch JD (from DB/files/platform)
 class FetchJDInput(TypedDict, total=True):
@@ -60,8 +60,8 @@ class FetchJDInput(TypedDict, total=True):
 class FetchJDOutput(TypedDict, total=True):
     job_id: str
     jd_text: str
-    jd_path: Optional[str]     # where saved (if applicable)
-    meta: Dict[str, Any]       # e.g., url, timestamp, length, hash
+    jd_path: Optional[str]  # where saved (if applicable)
+    meta: Dict[str, Any]  # e.g., url, timestamp, length, hash
 
 
 # 2) Local extraction (0.5B baseline or 0.5B+LoRA)
@@ -69,20 +69,20 @@ class ExtractLocalInput(TypedDict, total=True):
     job_id: str
     jd_text: str
     prompt_name: str  # e.g., "jd_extract_v2"
-    model: str        # e.g., "Qwen/Qwen2.5-0.5B-Instruct"
+    model: str  # e.g., "Qwen/Qwen2.5-0.5B-Instruct"
     lora_path: Optional[str]
     mode: Literal["plain", "chat_lora"]  # plain prompt vs chat-template(+LoRA)
-    device: str     # "cuda" or "cpu" (allow override for testing on CPU)
+    device: str  # "cuda" or "cpu" (allow override for testing on CPU)
     max_new_tokens: int
 
 
 class ExtractLocalOutput(TypedDict, total=True):
     job_id: str
-    structured: Optional[JobStructured]   # None if parse fails
-    raw_output: str                       # raw completion text
+    structured: Optional[JobStructured]  # None if parse fails
+    raw_output: str  # raw completion text
     parse_ok: bool
     parse_repaired: bool
-    extractor: Dict[str, Any]             # model meta (mode/model/lora/device)
+    extractor: Dict[str, Any]  # model meta (mode/model/lora/device)
 
 
 # 3) API extraction (fallback)
@@ -91,11 +91,10 @@ class ExtractAPIInput(TypedDict, total=True):
     jd_text: str
     prompt_name: str
     provider: Literal["openai", "nvidia"]  # OpenAI-compatible providers
-    model: str                            # e.g., "gpt-4o-mini" or "cheap-model"
+    model: str  # e.g., "gpt-4o-mini" or "cheap-model"
     temperature: float
     max_tokens: int
     thinking: Literal["auto", "disabled", "enabled"]
-
 
 
 class ExtractAPIOutput(TypedDict, total=True):
@@ -104,8 +103,8 @@ class ExtractAPIOutput(TypedDict, total=True):
     raw_output: str
     parse_ok: bool
     parse_repaired: bool
-    usage: Dict[str, Any]                 # tokens/cost if available
-    extractor: Dict[str, Any]             # provider/model
+    usage: Dict[str, Any]  # tokens/cost if available
+    extractor: Dict[str, Any]  # provider/model
 
 
 # 4) QC validate
@@ -136,7 +135,7 @@ class MatchOutput(TypedDict, total=True):
     score: float
     matched_skills: List[str]
     missing_skills: List[str]
-    notes: List[str]          # rule-based notes (explainable)
+    notes: List[str]  # rule-based notes (explainable)
 
 
 # 6) Report generation (API)
@@ -151,7 +150,6 @@ class ReportInput(TypedDict, total=True):
     temperature: float
     max_tokens: int
     thinking: Literal["auto", "disabled", "enabled"]
-
 
 
 class ReportOutput(TypedDict, total=True):
@@ -174,13 +172,14 @@ class StoreInput(TypedDict, total=True):
 
 class StoreOutput(TypedDict, total=True):
     job_id: str
-    paths: Dict[str, str]     # jd/structured/qc/report/trace
+    paths: Dict[str, str]  # jd/structured/qc/report/trace
     meta: Dict[str, Any]
 
 
 # ----------------------------
 # LangGraph State
 # ----------------------------
+
 
 @dataclass
 class JobState:
@@ -212,9 +211,11 @@ class JobState:
     # run config (per job)
     config: Dict[str, Any] = field(default_factory=dict)
 
+
 # ----------------------------
 # LangGraph v2 State
 # ----------------------------
+
 
 @dataclass
 class RunMeta:
@@ -281,7 +282,7 @@ class JobData:
 
 @dataclass
 class ExtractionAttempt:
-    stage: str                    # primary / fallback
+    stage: str  # primary / fallback
     mode: Literal["local", "api"]
     structured: Optional[JobStructured]
     raw_output: str
@@ -300,7 +301,7 @@ class ExtractionState:
 
 @dataclass
 class QCAttempt:
-    stage: str                    # primary / fallback
+    stage: str  # primary / fallback
     ok: bool
     status: Literal["pass", "fail"]
     reasons: List[str] = field(default_factory=list)

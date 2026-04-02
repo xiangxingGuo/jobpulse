@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field
 
 from src.schemas.skill_gap import ResumeProfile, SkillGapResult
 
+
 class SearchRequest(BaseModel):
     query: str = Field(..., min_length=1)
     top_k: int = Field(default=10, ge=1, le=50)
@@ -56,11 +57,13 @@ class JobDetailResponse(BaseModel):
 class RecentRunsResponse(BaseModel):
     runs: list[dict[str, Any]]
 
+
 class MetricsSummaryResponse(BaseModel):
     runs_considered: int
     scrape: dict[str, Any]
     counts: dict[str, int]
     latest_runs: list[dict[str, Any]]
+
 
 class AnalyticsItem(BaseModel):
     name: str
@@ -73,6 +76,7 @@ class AnalyticsSummaryResponse(BaseModel):
     top_companies: list[AnalyticsItem]
     top_locations: list[AnalyticsItem]
     top_titles: list[AnalyticsItem]
+
 
 class ResumeMatchRequest(BaseModel):
     resume_text: str = Field(..., min_length=20)
@@ -100,11 +104,13 @@ class ResumeMatchResponse(BaseModel):
     resume_profile: ResumeProfileResponse
     matches: list[ResumeMatchItem]
 
+
 class ResumeParseResponse(BaseModel):
     filename: str
     text_preview: str
     chars: int
     resume_text: str
+
 
 class ResumeAnalyzeFitRequest(BaseModel):
     job_id: str = Field(..., min_length=1)

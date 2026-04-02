@@ -5,7 +5,7 @@ import uuid
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException, UploadFile, File
+from fastapi import FastAPI, File, HTTPException, UploadFile
 
 from src.api.schemas import (
     AnalyticsSummaryResponse,
@@ -13,6 +13,8 @@ from src.api.schemas import (
     JobDetailResponse,
     JobMarketChatRequest,
     JobMarketChatResponse,
+    LexSkillGapRequest,
+    LexSkillGapResponse,
     MetricsSummaryResponse,
     RecentRunsResponse,
     ResumeAnalyzeFitRequest,
@@ -24,8 +26,6 @@ from src.api.schemas import (
     SearchResponse,
     SearchResult,
     SimilarResponse,
-    LexSkillGapRequest,
-    LexSkillGapResponse,
 )
 from src.db import (
     fetch_analytics_summary,
@@ -44,8 +44,6 @@ from src.services.job_search_service import JobSearchService
 from src.services.report_service import ReportService
 from src.services.skill_gap_service import SkillGapService
 
-import os
-import uuid
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -67,9 +65,12 @@ async def lifespan(app: FastAPI):
         _job_market_chat_service = None
     yield
 
+
 INDEX_DIR = Path("data/vectors")
 SKILL_GAP_ARTIFACTS_DIR = Path(os.getenv("ARTIFACT_DIR", "data/artifacts")) / "skill_gap"
-JOB_MARKET_CHAT_ARTIFACTS_DIR = Path(os.getenv("ARTIFACT_DIR", "data/artifacts")) / "job_market_chat"
+JOB_MARKET_CHAT_ARTIFACTS_DIR = (
+    Path(os.getenv("ARTIFACT_DIR", "data/artifacts")) / "job_market_chat"
+)
 _search_service: JobSearchService | None = None
 _skill_gap_service: SkillGapService | None = None
 _report_service: ReportService | None = None
@@ -103,6 +104,7 @@ def get_report_service() -> ReportService:
         _report_service = ReportService()
     return _report_service
 
+
 def get_job_market_chat_service() -> JobMarketChatService:
     global _job_market_chat_service
     if _job_market_chat_service is None:
@@ -111,6 +113,7 @@ def get_job_market_chat_service() -> JobMarketChatService:
             skill_gap_service=get_skill_gap_service(),
         )
     return _job_market_chat_service
+
 
 @app.get("/health", response_model=HealthResponse)
 def health() -> HealthResponse:
@@ -172,15 +175,18 @@ def recent_runs(limit: int = 10) -> RecentRunsResponse:
     rows = fetch_recent_scrape_runs(limit=limit)
     return RecentRunsResponse(runs=rows)
 
+
 @app.get("/metrics/summary", response_model=MetricsSummaryResponse)
 def metrics_summary(limit: int = 20) -> MetricsSummaryResponse:
     row = fetch_metrics_summary(limit=limit)
     return MetricsSummaryResponse(**row)
 
+
 @app.get("/analytics/summary", response_model=AnalyticsSummaryResponse)
 def analytics_summary(limit: int = 10) -> AnalyticsSummaryResponse:
     row = fetch_analytics_summary(limit=limit)
     return AnalyticsSummaryResponse(**row)
+
 
 @app.post("/resume/match", response_model=ResumeMatchResponse)
 def resume_match(req: ResumeMatchRequest) -> ResumeMatchResponse:
@@ -312,7 +318,6 @@ async def resume_analyze_fit(req: ResumeAnalyzeFitRequest) -> ResumeAnalyzeFitRe
     )
 
 
-
 @app.post("/resume/parse", response_model=ResumeParseResponse)
 async def resume_parse(file: UploadFile = File(...)) -> ResumeParseResponse:
     data = await file.read()
@@ -333,6 +338,7 @@ async def resume_parse(file: UploadFile = File(...)) -> ResumeParseResponse:
         chars=len(text),
         resume_text=text,
     )
+
 
 @app.post("/chat/job-market", response_model=JobMarketChatResponse)
 async def job_market_chat(req: JobMarketChatRequest) -> JobMarketChatResponse:
@@ -393,6 +399,7 @@ async def job_market_chat(req: JobMarketChatRequest) -> JobMarketChatResponse:
         },
     )
 
+
 @app.post("/lex/analyze-skill-gap", response_model=LexSkillGapResponse)
 async def lex_analyze_skill_gap(req: LexSkillGapRequest) -> LexSkillGapResponse:
     svc = get_job_market_chat_service()
@@ -402,8 +409,7 @@ async def lex_analyze_skill_gap(req: LexSkillGapRequest) -> LexSkillGapResponse:
 
     if not background_text and not resume_text:
         raise HTTPException(
-            status_code=400,
-            detail="Either candidate_background or resume_text must be provided."
+            status_code=400, detail="Either candidate_background or resume_text must be provided."
         )
 
     question_parts = [
@@ -415,9 +421,7 @@ async def lex_analyze_skill_gap(req: LexSkillGapRequest) -> LexSkillGapResponse:
         question_parts.append(f"My background is: {background_text}.")
 
     if resume_text:
-        question_parts.append(
-            "Use my uploaded resume as additional grounding for the analysis."
-        )
+        question_parts.append("Use my uploaded resume as additional grounding for the analysis.")
 
     question_parts.append(
         "Based on the current job market, what skills am I likely missing, "

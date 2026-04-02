@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass, asdict
-from typing import Any, Dict, List, Optional, Literal
+from dataclasses import asdict, dataclass
+from typing import Any, Dict, List, Literal, Optional
 
 from src.llm.json_repair import parse_json_object
 from src.llm.providers.openai_compat_client import OpenAICompatClient
@@ -18,7 +18,6 @@ from src.schemas.skill_gap import (
 from src.services.job_search_service import JobSearchService
 from src.services.resume_service import ResumeService
 from src.services.skill_gap_prompt import build_skill_gap_analysis_messages
-
 
 AnalysisMode = Literal["baseline", "hybrid"]
 
@@ -266,11 +265,7 @@ class SkillGapService:
 
         job_skills_raw = job_detail.get("skills", []) or []
         job_skills = sorted(
-            {
-                str(skill).strip().lower()
-                for skill in job_skills_raw
-                if str(skill).strip()
-            }
+            {str(skill).strip().lower() for skill in job_skills_raw if str(skill).strip()}
         )
 
         shared = sorted(set(all_resume_skills) & set(job_skills))
@@ -295,7 +290,7 @@ class SkillGapService:
         baseline: Dict[str, Any],
         market_context: Dict[str, Any],
     ) -> SkillGapResult:
-        job_skills = baseline["job_skills"]
+        # job_skills = baseline["job_skills"]
         shared = set(baseline["shared_skills"])
         missing = set(baseline["missing_skills"])
 
@@ -572,9 +567,7 @@ class SkillGapService:
 
         baseline_transferable = list(baseline_result.transferable_signals)
         llm_transferable = list(llm_result.get("transferable_signals") or [])
-        merged_transferable = self._dedupe_strengths(
-            baseline_transferable + llm_transferable
-        )
+        merged_transferable = self._dedupe_strengths(baseline_transferable + llm_transferable)
 
         llm_gaps = list(llm_result.get("gaps") or [])
         merged_gaps = self._dedupe_gaps(llm_gaps or list(baseline_result.gaps))
@@ -804,7 +797,9 @@ class SkillGapService:
         title = job_detail.get("title") or "this role"
         company = job_detail.get("company") or "the company"
 
-        strength_text = ", ".join(s.skill for s in strengths[:3]) or "limited directly matched skills"
+        strength_text = (
+            ", ".join(s.skill for s in strengths[:3]) or "limited directly matched skills"
+        )
         gap_text = ", ".join(g.skill for g in gaps[:3]) or "no major visible gaps"
         transfer_text = ", ".join(t.skill for t in transferable_signals[:2])
 
@@ -924,9 +919,7 @@ class SkillGapService:
         ):
             signals.append(("mlops", sorted(deployment_set)[0]))
 
-        if "rag" in missing_skills and (
-            "retrieval" in domain_set or "embedding" in domain_set
-        ):
+        if "rag" in missing_skills and ("retrieval" in domain_set or "embedding" in domain_set):
             signals.append(("rag", "retrieval"))
 
         if "transformers" in missing_skills and "huggingface" in explicit_set:

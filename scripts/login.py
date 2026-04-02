@@ -1,7 +1,9 @@
 from pathlib import Path
+
 from playwright.sync_api import sync_playwright
 
 STATE_PATH = Path("data/auth_state.json")
+
 
 def main():
     STATE_PATH.parent.mkdir(parents=True, exist_ok=True)
@@ -17,6 +19,7 @@ def main():
         context.storage_state(path=STATE_PATH)
         print(f"Saved authentication state to {STATE_PATH}")
         browser.close()
+
 
 if __name__ == "__main__":
     main()

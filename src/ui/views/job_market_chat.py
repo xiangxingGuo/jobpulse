@@ -20,7 +20,7 @@ def render_job_market_chat_page() -> None:
         "Question",
         value=st.session_state.get(
             "job_market_chat_question",
-            "Based on my background, which kinds of ML/AI roles should I prioritize?"
+            "Based on my background, which kinds of ML/AI roles should I prioritize?",
         ),
         height=120,
         placeholder="Ask about role fit, market trends, target jobs, or next steps.",

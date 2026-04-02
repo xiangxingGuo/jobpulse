@@ -4,6 +4,7 @@ import json
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Sequence
+
 from src.llm.json_repair import parse_json_object
 
 
@@ -40,6 +41,7 @@ def _extract_jsonish_tail(text: str) -> str:
     else:
         start = min(i_obj, i_arr)
     return t[start:].strip()
+
 
 def repair_json_text(text: str, max_append: int = 256) -> str:
     """
@@ -100,6 +102,7 @@ def repair_json_text(text: str, max_append: int = 256) -> str:
 
 # ---------- Data structures ----------
 
+
 @dataclass
 class ExtractionResult:
     """
@@ -108,12 +111,14 @@ class ExtractionResult:
     - raw_output: model raw text completion (useful for debugging)
     - error: error message if failed, else None
     """
+
     data: Optional[Dict[str, Any]]
     raw_output: str = ""
     error: Optional[str] = None
 
 
 # ---------- Base interface + shared utilities ----------
+
 
 class BaseExtractor(ABC):
     """
@@ -153,7 +158,7 @@ class BaseExtractor(ABC):
         """
         raw = ""
         try:
-            raw = (self._generate(prompt) or "").strip() # avoid None            
+            raw = (self._generate(prompt) or "").strip()  # avoid None
             data = self.parse_json(raw)
             self.validate_schema(data)
             return ExtractionResult(data=data, raw_output=raw, error=None)
@@ -190,7 +195,7 @@ class BaseExtractor(ABC):
         if not isinstance(obj2, dict):
             raise ValueError(f"Extracted JSON is not an object/dict: {type(obj2)}")
         return obj2
-    
+
     def _extract_last_json_object(self, text: str) -> Any:
         """
         Slow but robust fallback: find all top-level {...} blocks by brace matching,

@@ -1,14 +1,15 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from src.retrieval.search import (
     JobSearchService as RetrievalJobSearchService,
+)
+from src.retrieval.search import (
     get_job_by_id as retrieval_get_job_by_id,
 )
-
 
 DEFAULT_INDEX_DIR = Path("data/vectors")
 

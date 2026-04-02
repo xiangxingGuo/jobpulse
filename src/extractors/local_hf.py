@@ -1,15 +1,16 @@
 from __future__ import annotations
+
 import json
 import re
+import time
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
 
 import torch
-from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
+from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
 
 from src.schemas.job_schema import JobStructured
-from pathlib import Path
-import time
 
 DEBUG_DIR = Path("data/raw/llm_debug")
 DEBUG_DIR.mkdir(parents=True, exist_ok=True)
@@ -17,6 +18,7 @@ DEBUG_DIR.mkdir(parents=True, exist_ok=True)
 
 SCHEMA_VERSION = "v1"
 PROMPT_VERSION = "v1"
+
 
 def _strip_to_json(text: str) -> str:
     """
@@ -62,18 +64,16 @@ class LocalHFExtractor:
 
     # Configure 4-bit quantization
 
-
-
     def __post_init__(self) -> None:
         self.tokenizer = AutoTokenizer.from_pretrained(self.model_name, use_fast=True)
 
         # 4-bit load (bitsandbytes)
         bnb_config = BitsAndBytesConfig(
-        load_in_4bit=True,
-        bnb_4bit_use_double_quant=True,
-        bnb_4bit_quant_type="nf4",
-        bnb_4bit_compute_dtype=torch.bfloat16
-    )
+            load_in_4bit=True,
+            bnb_4bit_use_double_quant=True,
+            bnb_4bit_quant_type="nf4",
+            bnb_4bit_compute_dtype=torch.bfloat16,
+        )
         self.model = AutoModelForCausalLM.from_pretrained(
             self.model_name,
             device_map="auto",
@@ -126,7 +126,15 @@ Description:
 """
 
     @torch.inference_mode()
-    def extract(self, title: str, company: str, location: str, description: str, debug: bool = False, debug_id: str = "job") -> Tuple[Optional[Dict[str, Any]], Optional[str]]:
+    def extract(
+        self,
+        title: str,
+        company: str,
+        location: str,
+        description: str,
+        debug: bool = False,
+        debug_id: str = "job",
+    ) -> Tuple[Optional[Dict[str, Any]], Optional[str]]:
         prompt = self._prompt(title, company, location, description)
 
         inputs = self.tokenizer(prompt, return_tensors="pt", truncation=True, max_length=4096)
@@ -178,7 +186,9 @@ Description:
         debug_id: str = "job",
     ) -> Tuple[Optional[Dict[str, Any]], Optional[str]]:
         # retry with slightly more deterministic settings if needed
-        data, err = self.extract(title, company, location, description, debug=debug, debug_id=debug_id)
+        data, err = self.extract(
+            title, company, location, description, debug=debug, debug_id=debug_id
+        )
         if data is not None:
             return data, None
 
@@ -188,7 +198,9 @@ Description:
         self.temperature = 0.0
         try:
             for _ in range(retries):
-                data, err = self.extract(title, company, location, description, debug=debug, debug_id=debug_id)
+                data, err = self.extract(
+                    title, company, location, description, debug=debug, debug_id=debug_id
+                )
                 if data is not None:
                     return data, None
                 last_err = err

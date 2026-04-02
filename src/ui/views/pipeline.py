@@ -13,7 +13,7 @@ def render_pipeline_page() -> None:
     except Exception as e:
         st.error(f"Metrics unavailable: {e}")
         metrics = {"runs_considered": 0, "scrape": {}, "counts": {}, "latest_runs": []}
-        
+
     scrape = metrics.get("scrape") or {}
     latest_runs = metrics.get("latest_runs") or []
     counts = metrics.get("counts") or {}

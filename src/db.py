@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import json
 import sqlite3
-from pathlib import Path
-from typing import Iterable, Dict, Any, Optional, List, Set
 from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Dict, Iterable, List, Optional, Set
 
 DB_PATH = Path("data/db/jobs.db")
 
@@ -87,8 +87,10 @@ CREATE TABLE IF NOT EXISTS job_embeddings (
 CREATE INDEX IF NOT EXISTS idx_job_embeddings_model ON job_embeddings(embedding_model);
 """
 
+
 def _utc_now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
+
 
 def get_conn(db_path: Path = DB_PATH) -> sqlite3.Connection:
     db_path.parent.mkdir(parents=True, exist_ok=True)
@@ -97,15 +99,18 @@ def get_conn(db_path: Path = DB_PATH) -> sqlite3.Connection:
     conn.execute("PRAGMA foreign_keys=ON;")
     return conn
 
+
 def _table_info(conn: sqlite3.Connection, table: str) -> List[str]:
     rows = conn.execute(f"PRAGMA table_info({table});").fetchall()
     # row[1] is name
     return [r[1] for r in rows]
 
+
 def _add_column_if_missing(conn: sqlite3.Connection, table: str, coldef: str, colname: str) -> None:
     cols = set(_table_info(conn, table))
     if colname not in cols:
         conn.execute(f"ALTER TABLE {table} ADD COLUMN {coldef};")
+
 
 def migrate(conn: sqlite3.Connection) -> None:
     """
@@ -117,6 +122,7 @@ def migrate(conn: sqlite3.Connection) -> None:
     _add_column_if_missing(conn, "jobs", "content_hash TEXT", "content_hash")
     _add_column_if_missing(conn, "jobs", "last_seen_at_utc TEXT", "last_seen_at_utc")
 
+
 def init_db() -> None:
     with get_conn() as conn:
         conn.executescript(BASE_SCHEMA)
@@ -125,10 +131,12 @@ def init_db() -> None:
         migrate(conn)
         conn.commit()
 
+
 def get_existing_job_ids() -> Set[str]:
     with get_conn() as conn:
         rows = conn.execute("SELECT job_id FROM jobs;").fetchall()
         return {r[0] for r in rows if r and r[0]}
+
 
 def begin_run(run_id: str, config: Dict[str, Any]) -> None:
     with get_conn() as conn:
@@ -138,7 +146,10 @@ def begin_run(run_id: str, config: Dict[str, Any]) -> None:
         )
         conn.commit()
 
-def end_run(run_id: str, summary: Dict[str, Any], elapsed_sec: float, slo_met: Optional[bool]) -> None:
+
+def end_run(
+    run_id: str, summary: Dict[str, Any], elapsed_sec: float, slo_met: Optional[bool]
+) -> None:
     with get_conn() as conn:
         conn.execute(
             """
@@ -155,6 +166,7 @@ def end_run(run_id: str, summary: Dict[str, Any], elapsed_sec: float, slo_met: O
             ),
         )
         conn.commit()
+
 
 def record_event(
     run_id: str,
@@ -185,12 +197,28 @@ def record_event(
         )
         conn.commit()
 
-def upsert_job(row: Dict[str, Any], scrape_status: str = "success", scrape_error: Optional[str] = None) -> None:
+
+def upsert_job(
+    row: Dict[str, Any], scrape_status: str = "success", scrape_error: Optional[str] = None
+) -> None:
     cols = [
-        "job_id","url","title","company","posted_text","apply_by_text","pay_text",
-        "location_text","employment_type","date_range_text","work_auth_text",
-        "opt_cpt_text","description",
-        "scrape_status","scrape_error","content_hash","last_seen_at_utc",
+        "job_id",
+        "url",
+        "title",
+        "company",
+        "posted_text",
+        "apply_by_text",
+        "pay_text",
+        "location_text",
+        "employment_type",
+        "date_range_text",
+        "work_auth_text",
+        "opt_cpt_text",
+        "description",
+        "scrape_status",
+        "scrape_error",
+        "content_hash",
+        "last_seen_at_utc",
     ]
     data = {c: row.get(c) for c in cols}
 
@@ -200,8 +228,12 @@ def upsert_job(row: Dict[str, Any], scrape_status: str = "success", scrape_error
     data["last_seen_at_utc"] = data.get("last_seen_at_utc") or _utc_now_iso()
 
     # content_hash for idempotency
-    desc = (row.get("description") or "")
-    data["content_hash"] = row.get("content_hash") or (None if not desc else __import__("hashlib").sha1(desc.encode("utf-8", errors="ignore")).hexdigest())
+    desc = row.get("description") or ""
+    data["content_hash"] = row.get("content_hash") or (
+        None
+        if not desc
+        else __import__("hashlib").sha1(desc.encode("utf-8", errors="ignore")).hexdigest()
+    )
 
     placeholders = ",".join(["?"] * len(cols))
     assignments = ",".join([f"{c}=excluded.{c}" for c in cols[1:]])  # don't overwrite PK
@@ -215,6 +247,7 @@ def upsert_job(row: Dict[str, Any], scrape_status: str = "success", scrape_error
         conn.execute(sql, [data[c] for c in cols])
         conn.commit()
 
+
 def replace_job_skills(job_id: str, skills: Iterable[str]) -> None:
     uniq = sorted(set([s.strip() for s in skills if s and s.strip()]))
     with get_conn() as conn:
@@ -225,10 +258,16 @@ def replace_job_skills(job_id: str, skills: Iterable[str]) -> None:
         )
         conn.commit()
 
+
 def upsert_job_structured(row: Dict[str, Any]) -> None:
     cols = [
-        "job_id","model","schema_version","prompt_version",
-        "data_json","confidence","error"
+        "job_id",
+        "model",
+        "schema_version",
+        "prompt_version",
+        "data_json",
+        "confidence",
+        "error",
     ]
     placeholders = ",".join(["?"] * len(cols))
     assignments = ",".join([f"{c}=excluded.{c}" for c in cols[1:]])
@@ -240,12 +279,13 @@ def upsert_job_structured(row: Dict[str, Any]) -> None:
     with get_conn() as conn:
         conn.execute(sql, [row.get(c) for c in cols])
         conn.commit()
-    
+
 
 def get_job_content_hash(job_id: str) -> Optional[str]:
     with get_conn() as conn:
         row = conn.execute("SELECT content_hash FROM jobs WHERE job_id=?", (job_id,)).fetchone()
         return row[0] if row and row[0] else None
+
 
 def update_job_operational(job_id: str, scrape_status: str, scrape_error: Optional[str]) -> None:
     with get_conn() as conn:
@@ -258,6 +298,7 @@ def update_job_operational(job_id: str, scrape_status: str, scrape_error: Option
             (scrape_status, scrape_error, job_id),
         )
         conn.commit()
+
 
 def fetch_jobs_for_retrieval(limit: Optional[int] = None) -> List[Dict[str, Any]]:
     """
@@ -330,6 +371,7 @@ def fetch_jobs_for_retrieval(limit: Optional[int] = None) -> List[Dict[str, Any]
             )
 
         return jobs
+
 
 def fetch_job_detail(job_id: str) -> Optional[Dict[str, Any]]:
     with get_conn() as conn:
@@ -462,6 +504,7 @@ def fetch_recent_scrape_runs(limit: int = 10) -> List[Dict[str, Any]]:
             )
         return out
 
+
 def fetch_metrics_summary(limit: int = 20) -> Dict[str, Any]:
     runs = fetch_recent_scrape_runs(limit=limit)
 
@@ -543,7 +586,10 @@ def fetch_metrics_summary(limit: int = 20) -> Dict[str, Any]:
         "latest_runs": latest_runs,
     }
 
-def upsert_job_embedding_record(job_id: str, content_hash: Optional[str], embedding_model: str) -> None:
+
+def upsert_job_embedding_record(
+    job_id: str, content_hash: Optional[str], embedding_model: str
+) -> None:
     with get_conn() as conn:
         conn.execute(
             """
@@ -579,7 +625,9 @@ def get_embedding_record(job_id: str) -> Optional[Dict[str, Any]]:
         }
 
 
-def fetch_jobs_needing_reindex(embedding_model: str, limit: Optional[int] = None) -> List[Dict[str, Any]]:
+def fetch_jobs_needing_reindex(
+    embedding_model: str, limit: Optional[int] = None
+) -> List[Dict[str, Any]]:
     rows = fetch_jobs_for_retrieval(limit=None)
 
     out: List[Dict[str, Any]] = []
@@ -598,6 +646,7 @@ def fetch_jobs_needing_reindex(embedding_model: str, limit: Optional[int] = None
     if limit is not None:
         return out[:limit]
     return out
+
 
 def fetch_analytics_summary(limit: int = 10) -> Dict[str, Any]:
     with get_conn() as conn:

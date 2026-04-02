@@ -3,14 +3,15 @@ from __future__ import annotations
 import time
 from typing import Any, Dict, Literal, Optional, TypedDict
 
-from langgraph.graph import StateGraph, END
+from langgraph.graph import END, StateGraph
 
-from src.services.job_fetch_service import JobFetchService
 from src.services.extraction_service import ExtractionService
+from src.services.job_fetch_service import JobFetchService
 from src.services.qc_service import QCService
 from src.services.report_service import ReportService
 
 # Path("data/artifacts/_debug").mkdir(parents=True, exist_ok=True)
+
 
 def _input_value(state: GraphState, key: str, default: Any = None) -> Any:
     return (state.get("input") or {}).get(key, state.get(key, default))
@@ -127,7 +128,9 @@ def _ensure_v2_state(state: dict[str, Any]) -> None:
     models.setdefault("local_lora_path", state.get("local_lora_path"))
 
     qc_policy = state.setdefault("qc_policy", {})
-    qc_policy.setdefault("require_keys", ["role_title", "company", "requirements", "responsibilities"])
+    qc_policy.setdefault(
+        "require_keys", ["role_title", "company", "requirements", "responsibilities"]
+    )
     qc_policy.setdefault("require_non_empty_any_of", [["requirements", "responsibilities"]])
 
     features = state.setdefault("features", {})
@@ -214,10 +217,10 @@ def _tool_result_text(res: Any) -> str:
     return "".join(parts)
 
 
-
 # -----------------------
 # Nodes
 # -----------------------
+
 
 async def node_fetch_jd(state: GraphState) -> GraphState:
     started = time.perf_counter()
@@ -344,7 +347,11 @@ async def node_extract_api(state: GraphState) -> GraphState:
             "extractor": payload.get("extractor") or {},
         }
 
-        stage = "fallback" if state.get("config_routing", {}).get("primary_mode") == "local" else "primary"
+        stage = (
+            "fallback"
+            if state.get("config_routing", {}).get("primary_mode") == "local"
+            else "primary"
+        )
 
         _append_extraction_attempt(
             state,
@@ -433,7 +440,6 @@ async def node_report(state: GraphState) -> GraphState:
 
     svc = ReportService()
 
-
     result = await svc.generate(
         job_id=_input_value(state, "job_id"),
         structured=state.get("structured") or {},
@@ -477,6 +483,7 @@ async def node_report(state: GraphState) -> GraphState:
 
     return state
 
+
 async def node_finalize(state: GraphState) -> GraphState:
     _ensure_v2_state(state)
 
@@ -500,11 +507,11 @@ async def node_finalize(state: GraphState) -> GraphState:
 # Routers
 # -----------------------
 
+
 def route_after_fetch(state: GraphState) -> str:
     _ensure_v2_state(state)
     primary_mode = _routing_value(state, "primary_mode", "api")
     return "extract_local" if primary_mode == "local" else "extract_api"
-
 
 
 def route_after_qc(state: GraphState) -> str:
@@ -512,16 +519,23 @@ def route_after_qc(state: GraphState) -> str:
 
     qc = state.get("qc", {})
     extractor = (state.get("extract_meta") or {}).get("extractor") or {}
-    routing = state.get("config_routing", {})
+    # routing = state.get("config_routing", {})
 
     if qc.get("status") == "pass":
-        route = "local_then_report" if len(state.get("extraction", {}).get("attempts", [])) == 1 and extractor.get("mode") in ("plain", "chat_lora") else "api_then_report"
+        route = (
+            "local_then_report"
+            if len(state.get("extraction", {}).get("attempts", [])) == 1
+            and extractor.get("mode") in ("plain", "chat_lora")
+            else "api_then_report"
+        )
         state["run"]["route"] = route
-        state.setdefault("decisions", []).append({
-            "decision": "qc_pass",
-            "at": _now(),
-            "route": route,
-        })
+        state.setdefault("decisions", []).append(
+            {
+                "decision": "qc_pass",
+                "at": _now(),
+                "route": route,
+            }
+        )
         return "report"
 
     used_api = extractor.get("provider") in ("openai", "nvidia")
@@ -530,29 +544,35 @@ def route_after_qc(state: GraphState) -> str:
 
     if used_api or not fallback_enabled or primary_mode == "api":
         state["run"]["route"] = "failed_no_qc_pass"
-        state.setdefault("decisions", []).append({
-            "decision": "qc_fail_terminal",
-            "at": _now(),
-            "reasons": qc.get("reasons") or qc.get("issues"),
-            "route": state["run"]["route"],
-        })
+        state.setdefault("decisions", []).append(
+            {
+                "decision": "qc_fail_terminal",
+                "at": _now(),
+                "reasons": qc.get("reasons") or qc.get("issues"),
+                "route": state["run"]["route"],
+            }
+        )
         return "finalize"
 
     state["run"]["route"] = "local_then_api"
-    state.setdefault("decisions", []).append({
-        "decision": "fallback_to_api",
-        "at": _now(),
-        "reason": "qc_fail_local",
-        "reasons": qc.get("reasons") or qc.get("issues"),
-        "route": state["run"]["route"],
-    })
+    state.setdefault("decisions", []).append(
+        {
+            "decision": "fallback_to_api",
+            "at": _now(),
+            "reason": "qc_fail_local",
+            "reasons": qc.get("reasons") or qc.get("issues"),
+            "route": state["run"]["route"],
+        }
+    )
     return "extract_api"
+
 
 """
 LangGraph is the primary runtime orchestrator for JobPulse.
 
 This graph calls core services directly and does not depend on MCP tool execution.
 """
+
 
 def build_graph() -> Any:
     g = StateGraph(GraphState)
@@ -566,19 +586,27 @@ def build_graph() -> Any:
 
     g.set_entry_point("fetch")
 
-    g.add_conditional_edges("fetch", route_after_fetch, {
-        "extract_local": "extract_local",
-        "extract_api": "extract_api",
-    })
+    g.add_conditional_edges(
+        "fetch",
+        route_after_fetch,
+        {
+            "extract_local": "extract_local",
+            "extract_api": "extract_api",
+        },
+    )
 
     g.add_edge("extract_local", "qc")
     g.add_edge("extract_api", "qc")
 
-    g.add_conditional_edges("qc", route_after_qc, {
-        "report": "report",
-        "extract_api": "extract_api",
-        "finalize": "finalize",
-    })
+    g.add_conditional_edges(
+        "qc",
+        route_after_qc,
+        {
+            "report": "report",
+            "extract_api": "extract_api",
+            "finalize": "finalize",
+        },
+    )
 
     g.add_edge("report", "finalize")
     g.add_edge("finalize", END)

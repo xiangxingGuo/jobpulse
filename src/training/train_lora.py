@@ -1,19 +1,17 @@
-import os
 import json
+import os
 from pathlib import Path
 
 import torch
 from datasets import load_dataset
-from transformers import (
-    AutoTokenizer,
-    AutoModelForCausalLM,
-    TrainingArguments,
-    Trainer,
-    DataCollatorForLanguageModeling,
-)
-
 from peft import LoraConfig, get_peft_model
-
+from transformers import (
+    AutoModelForCausalLM,
+    AutoTokenizer,
+    DataCollatorForLanguageModeling,
+    Trainer,
+    TrainingArguments,
+)
 
 # ====== Config (change only these) ======
 BASE_MODEL = "Qwen/Qwen2.5-0.5B-Instruct"

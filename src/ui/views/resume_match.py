@@ -85,7 +85,9 @@ def render_resume_match_page() -> None:
         cleaned_resume_text = (resume_text or "").strip()
 
         if len(cleaned_resume_text) < 20:
-            st.error("Resume text is too short. Please paste more content or parse a valid file first.")
+            st.error(
+                "Resume text is too short. Please paste more content or parse a valid file first."
+            )
         else:
             data = match_resume(resume_text=cleaned_resume_text, top_k=top_k)
             st.session_state.resume_text = cleaned_resume_text
@@ -136,7 +138,9 @@ def render_resume_match_page() -> None:
         if analyze_clicked:
             cleaned_resume_text = (st.session_state.get("resume_text") or "").strip()
             if len(cleaned_resume_text) < 20:
-                st.error("Resume text is too short. Please paste more content or parse a valid file first.")
+                st.error(
+                    "Resume text is too short. Please paste more content or parse a valid file first."
+                )
             else:
                 with st.spinner("Running skill-gap analysis..."):
                     try:
@@ -199,9 +203,11 @@ def _render_skill_gap_analysis(analysis: dict) -> None:
     resume_profile = analysis.get("resume_profile") or {}
     report_md = analysis.get("report_md") or ""
     meta = analysis.get("meta") or {}
-    llm_meta = ((skill_gap.get("meta") or {}).get("llm") or {})
+    llm_meta = (skill_gap.get("meta") or {}).get("llm") or {}
 
-    analysis_mode = meta.get("analysis_mode") or ((skill_gap.get("meta") or {}).get("analysis_mode"))
+    analysis_mode = meta.get("analysis_mode") or (
+        (skill_gap.get("meta") or {}).get("analysis_mode")
+    )
     provider = meta.get("provider")
     model = meta.get("model")
 
@@ -226,7 +232,7 @@ def _render_skill_gap_analysis(analysis: dict) -> None:
 
     if badges:
         st.caption(" | ".join(badges))
-    
+
     summary = skill_gap.get("summary")
     if summary:
         st.info(summary)
@@ -243,7 +249,9 @@ def _render_skill_gap_analysis(analysis: dict) -> None:
     if strengths:
         st.markdown("**Evidence-backed Strengths**")
         for item in strengths:
-            st.markdown(f"- **{item.get('skill')}** ({item.get('support')}) — {item.get('rationale')}")
+            st.markdown(
+                f"- **{item.get('skill')}** ({item.get('support')}) — {item.get('rationale')}"
+            )
             for ev in item.get("evidence") or []:
                 st.caption(f"[{ev.get('source')}] {ev.get('snippet')}")
 
@@ -295,9 +303,9 @@ def _render_skill_gap_analysis(analysis: dict) -> None:
     if meta:
         with st.expander("Analysis Meta", expanded=False):
             st.json(meta)
-    
+
     if llm_meta:
         with st.expander("LLM Analysis Info", expanded=False):
             st.json(llm_meta)
-    
+
     st.markdown("---")

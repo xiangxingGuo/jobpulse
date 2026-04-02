@@ -1,11 +1,12 @@
 from __future__ import annotations
-from typing import List, Optional, Literal
+
+from typing import List, Literal, Optional
+
 from pydantic import BaseModel, Field
 
-
-RoleCategory = Literal["MLE","DS","DE","SWE","RE","Other"]
-Seniority = Literal["Intern","NewGrad","Junior","Mid","Senior","Staff","Other"]
-WorkMode = Literal["Remote","Hybrid","Onsite","Unknown"]
+RoleCategory = Literal["MLE", "DS", "DE", "SWE", "RE", "Other"]
+Seniority = Literal["Intern", "NewGrad", "Junior", "Mid", "Senior", "Staff", "Other"]
+WorkMode = Literal["Remote", "Hybrid", "Onsite", "Unknown"]
 
 
 class VisaInfo(BaseModel):

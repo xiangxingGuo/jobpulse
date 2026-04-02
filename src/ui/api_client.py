@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import os
-import requests
 
+import requests
 
 API_BASE = os.getenv("JOBPULSE_API_BASE", "http://127.0.0.1:8000")
 
@@ -46,10 +46,12 @@ def get_recent_runs(limit: int = 10) -> dict:
     r.raise_for_status()
     return r.json()
 
+
 def get_analytics_summary(limit: int = 10) -> dict:
     r = requests.get(f"{API_BASE}/analytics/summary?limit={limit}", timeout=60)
     r.raise_for_status()
     return r.json()
+
 
 def match_resume(resume_text: str, top_k: int = 5) -> dict:
     payload = {"resume_text": resume_text, "top_k": top_k}
@@ -101,9 +103,7 @@ def analyze_resume_fit(
             detail = r.json()
         except Exception:
             detail = {"raw_text": r.text}
-        raise RuntimeError(
-            f"/resume/analyze-fit failed: status={r.status_code}, detail={detail}"
-        )
+        raise RuntimeError(f"/resume/analyze-fit failed: status={r.status_code}, detail={detail}")
 
     return r.json()
 
@@ -113,7 +113,7 @@ def parse_resume_file(filename: str, file_bytes: bytes) -> dict:
         "file": (filename, file_bytes),
     }
     r = requests.post(f"{API_BASE}/resume/parse", files=files, timeout=90)
-    
+
     if not r.ok:
         try:
             detail = r.json()
@@ -122,6 +122,7 @@ def parse_resume_file(filename: str, file_bytes: bytes) -> dict:
         raise RuntimeError(f"/resume/parse failed: status={r.status_code}, detail={detail}")
 
     return r.json()
+
 
 def job_market_chat(
     question: str,
@@ -151,9 +152,7 @@ def job_market_chat(
             detail = r.json()
         except Exception:
             detail = {"raw_text": r.text}
-        raise RuntimeError(
-            f"/chat/job-market failed: status={r.status_code}, detail={detail}"
-        )
+        raise RuntimeError(f"/chat/job-market failed: status={r.status_code}, detail={detail}")
 
     return r.json()
 
@@ -182,8 +181,8 @@ def analyze_skill_gap_serverless(
         headers={
             "Content-Type": "application/json",
             "User-Agent": "Mozilla/5.0",
-            "Accept": "application/json"
-        }
+            "Accept": "application/json",
+        },
     )
 
     if not r.ok:
@@ -191,9 +190,7 @@ def analyze_skill_gap_serverless(
             detail = r.json()
         except Exception:
             detail = {"raw_text": r.text}
-        raise RuntimeError(
-            f"serverless skill gap failed: status={r.status_code}, detail={detail}"
-        )
+        raise RuntimeError(f"serverless skill gap failed: status={r.status_code}, detail={detail}")
 
     return r.json()
 
@@ -210,8 +207,8 @@ def start_career_session() -> dict:
         headers={
             "Content-Type": "application/json",
             "User-Agent": "Mozilla/5.0",
-            "Accept": "application/json"
-        }
+            "Accept": "application/json",
+        },
     )
 
     if not r.ok:
@@ -219,9 +216,7 @@ def start_career_session() -> dict:
             detail = r.json()
         except Exception:
             detail = {"raw_text": r.text}
-        raise RuntimeError(
-            f"/career/session/start failed: status={r.status_code}, detail={detail}"
-        )
+        raise RuntimeError(f"/career/session/start failed: status={r.status_code}, detail={detail}")
 
     return r.json()
 
@@ -272,8 +267,8 @@ def get_career_session(session_id: str) -> dict:
         headers={
             "Content-Type": "application/json",
             "User-Agent": "Mozilla/5.0",
-            "Accept": "application/json"
-        }
+            "Accept": "application/json",
+        },
     )
 
     if not r.ok:

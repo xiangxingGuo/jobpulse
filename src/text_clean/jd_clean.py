@@ -1,7 +1,6 @@
 import re
 from typing import Iterable
 
-
 DEFAULT_DROP_PATTERNS: list[str] = [
     r"^\s*Apply\s*$",
     r"^\s*Apply by\s*.*$",

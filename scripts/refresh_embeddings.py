@@ -5,8 +5,8 @@ import json
 from pathlib import Path
 
 from src.db import (
-    init_db,
     fetch_jobs_needing_reindex,
+    init_db,
     upsert_job_embedding_record,
 )
 from src.retrieval.documents import build_documents

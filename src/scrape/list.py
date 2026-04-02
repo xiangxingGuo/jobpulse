@@ -1,14 +1,18 @@
 from __future__ import annotations
 
 import re
-from typing import List, Dict
+from typing import Dict, List
+
 from playwright.async_api import Page
 
 BASE = "https://app.joinhandshake.com"
 
 _JOB_RE = re.compile(r"^/jobs/(\d+)\b")
 
-async def collect_job_links(page: Page, pages: int = 1, per_page: int = 25, timeout_ms: int = 15000) -> List[Dict[str, str]]:
+
+async def collect_job_links(
+    page: Page, pages: int = 1, per_page: int = 25, timeout_ms: int = 15000
+) -> List[Dict[str, str]]:
     out: List[Dict[str, str]] = []
     seen = set()
 

@@ -1,24 +1,20 @@
 from __future__ import annotations
 
-import os
 import json
 from pathlib import Path
-from typing import Any, Dict, Optional, Tuple, List, Literal
+from typing import Any, Dict, Literal, Optional
 
-
-import httpx
-
-from src.orch.schema import ExtractAPIOutput, JobStructured
+from src.llm.json_repair import parse_json_object
 from src.llm.providers.openai_compat_client import OpenAICompatClient
 from src.llm.providers.openai_compat_providers import PROVIDERS
-from src.llm.json_repair import parse_json_object
-
+from src.orch.schema import ExtractAPIOutput, JobStructured
 
 PROMPTS = {
     "jd_extract_v1": Path("src/llm/prompts/jd_extract_v1.txt"),
     "jd_extract_v2": Path("src/llm/prompts/jd_extract_v2.txt"),
     "jd_extract_v3": Path("src/llm/prompts/jd_extract_v3.txt"),
 }
+
 
 def _get_message_text(resp: Dict[str, Any]) -> str:
     """
@@ -72,6 +68,7 @@ def _build_prompt(prompt_name: str, jd_text: str) -> str:
     assert "{{JOB_DESCRIPTION}}" not in prompt, "Placeholder not replaced"
     return prompt
 
+
 async def extract_api(
     job_id: str,
     jd_text: str,
@@ -92,8 +89,8 @@ async def extract_api(
       Optional base URL override:
         OPENAI_BASE_URL, NVIDIA_BASE_URL
     """
-    prov: ProviderName = provider  # type: ignore
-    cfg = PROVIDERS[prov]
+    # prov: provider  # type: ignore
+    cfg = PROVIDERS[provider]
     if model is None:
         model = cfg.default_model
 
@@ -126,9 +123,11 @@ async def extract_api(
         payload["extra_body"] = {"thinking": {"type": "enabled"}}
 
     if provider == "openai":
-        payload.pop("extra_body", None)  # OpenAI doesn't support thinking control (ignore if present)
+        payload.pop(
+            "extra_body", None
+        )  # OpenAI doesn't support thinking control (ignore if present)
 
-    client = OpenAICompatClient(provider=prov)
+    client = OpenAICompatClient(provider=provider)
     resp = await client.chat_completions(payload)
 
     content = _get_message_text(resp)

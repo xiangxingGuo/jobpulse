@@ -3,10 +3,9 @@ from __future__ import annotations
 from typing import Any, Dict, Optional, Sequence
 
 import torch
-from transformers import AutoTokenizer, AutoModelForCausalLM
+from transformers import AutoModelForCausalLM, AutoTokenizer
 
 from .base import BaseExtractor
-from src.llm.json_repair import parse_json_object
 
 
 class HFPlainExtractor(BaseExtractor):
@@ -20,7 +19,6 @@ class HFPlainExtractor(BaseExtractor):
         device_map: Optional[str] = None,
         required_keys: Optional[Sequence[str]] = None,
         list_keys: Optional[Sequence[str]] = None,
-
         # NEW: generation controls
         do_sample: bool = False,
         temperature: float = 0.0,
@@ -52,7 +50,9 @@ class HFPlainExtractor(BaseExtractor):
             device_map = "auto" if device == "cuda" else None
         self.device_map = device_map
 
-        self.tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=trust_remote_code)
+        self.tokenizer = AutoTokenizer.from_pretrained(
+            model_name, trust_remote_code=trust_remote_code
+        )
         if self.tokenizer.pad_token is None and self.tokenizer.eos_token is not None:
             self.tokenizer.pad_token = self.tokenizer.eos_token
 

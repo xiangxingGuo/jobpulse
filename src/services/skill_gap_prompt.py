@@ -39,14 +39,12 @@ def build_skill_gap_analysis_messages(
         "3. Structured target job data\n"
         "4. Baseline overlap signals\n"
         "5. Market context from similar jobs\n\n"
-
         "Your job:\n"
         "- identify direct strengths\n"
         "- identify transferable strengths\n"
         "- identify must-have gaps, nice-to-have gaps, and ambiguous gaps\n"
         "- suggest grounded resume improvements\n"
         "- write a concise summary\n\n"
-
         "Important rules:\n"
         "- A direct strength must have clear support from the resume/profile.\n"
         "- A transferable strength may be inferred from adjacent experience, but must say what that adjacent evidence is.\n"
@@ -54,7 +52,6 @@ def build_skill_gap_analysis_messages(
         "- Do not say the candidate has experience they do not have.\n"
         "- Resume suggestions must improve phrasing or evidence presentation, not fabricate content.\n"
         "- Keep output concise and grounded.\n\n"
-
         "Return JSON in exactly this shape:\n"
         "{\n"
         '  "strengths": [\n'
@@ -115,12 +112,10 @@ def build_skill_gap_analysis_messages(
         "  ],\n"
         '  "summary": "string"\n'
         "}\n\n"
-
         "Guidance on evidence:\n"
         "- Prefer short snippets, not long quotations.\n"
         "- Use source='baseline' when referencing overlap or missing-skill signals.\n"
         "- Use source='market' only when the similar-job context is relevant.\n\n"
-
         "Inputs below.\n\n"
         f"RESUME_PROFILE_JSON:\n{_to_pretty_json(resume_profile)}\n\n"
         f"RESUME_TEXT:\n{_truncate_text(resume_text, max_chars=4000)}\n\n"

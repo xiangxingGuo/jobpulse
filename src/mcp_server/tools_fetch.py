@@ -2,10 +2,9 @@ from __future__ import annotations
 
 import hashlib
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Optional
 
 from src.orch.schema import FetchJDOutput
-
 
 JD_DIR = Path("data/raw/jd_txt")
 

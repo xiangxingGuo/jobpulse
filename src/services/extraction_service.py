@@ -1,16 +1,15 @@
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass, asdict
-from typing import Any, Dict, Optional, Tuple, List, Literal
+from dataclasses import asdict, dataclass
 from pathlib import Path
+from typing import Any, Dict, Literal, Optional
 
-from src.llm.providers.hf_plain import HFPlainExtractor
+from src.llm.json_repair import parse_json_object
 from src.llm.providers.hf_chat_lora import HFChatLoRAExtractor
+from src.llm.providers.hf_plain import HFPlainExtractor
 from src.llm.providers.openai_compat_client import OpenAICompatClient
 from src.llm.providers.openai_compat_providers import PROVIDERS
-from src.llm.json_repair import parse_json_object
-
 
 PROMPTS = {
     "jd_extract_v1": Path("src/llm/prompts/jd_extract_v1.txt"),
@@ -26,6 +25,7 @@ def _build_prompt(prompt_name: str, jd_text: str) -> str:
     prompt = template.replace("{{JOB_DESCRIPTION}}", jd_text)
     assert "{{JOB_DESCRIPTION}}" not in prompt, "Placeholder not replaced"
     return prompt
+
 
 def _get_message_text(resp: Dict[str, Any]) -> str:
     """
@@ -70,6 +70,7 @@ def _get_message_text(resp: Dict[str, Any]) -> str:
     # 5) Give up: return empty string (caller may dump resp for debugging)
     return ""
 
+
 @dataclass
 class ExtractResult:
     structured: Optional[Dict[str, Any]]
@@ -83,6 +84,7 @@ class ExtractResult:
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
 
+
 class ExtractionService:
     """
     Service for extracting structured information from job descriptions.
@@ -94,10 +96,16 @@ class ExtractionService:
         job_id: str,
         jd_text: str,
         prompt_name: str = "jd_extract_v2",
-        model: Literal["Qwen/Qwen2.5-0.5B-Instruct", "Qwen/Qwen2.5-3B-Instruct", 
-                       "meta-llama/Llama-3.2-1B-Instruct", "meta-llama/Llama-3.2-3B-Instruct",
-                       "Qwen/Qwen3.5-0.8B", "Qwen/Qwen3.5-2B", "Qwen/Qwen3.5-4B"] = "Qwen/Qwen2.5-0.5B-Instruct",
-        lora_path: Optional[str] =  None,
+        model: Literal[
+            "Qwen/Qwen2.5-0.5B-Instruct",
+            "Qwen/Qwen2.5-3B-Instruct",
+            "meta-llama/Llama-3.2-1B-Instruct",
+            "meta-llama/Llama-3.2-3B-Instruct",
+            "Qwen/Qwen3.5-0.8B",
+            "Qwen/Qwen3.5-2B",
+            "Qwen/Qwen3.5-4B",
+        ] = "Qwen/Qwen2.5-0.5B-Instruct",
+        lora_path: Optional[str] = None,
         mode: Literal["plain", "chat_lora"] = "plain",
         device: Literal["cuda", "cpu"] = "cuda",
         temperature: float = 0.0,
@@ -110,7 +118,7 @@ class ExtractionService:
         Local extraction to produce structured JSON for the schema.
         May not used when deploying in cloud (due to GPU requirements)
         """
-        
+
         prompt = _build_prompt(prompt_name, jd_text)
 
         do_sample = bool(temperature and temperature > 0)
@@ -129,29 +137,29 @@ class ExtractionService:
 
         if mode == "plain":
             extractor = HFPlainExtractor(
-                    model_name=model,
-                    device=device,
-                    max_new_tokens=max_tokens,
-                    do_sample=do_sample,
-                    temperature=temperature,
-                    top_p=top_p,
-                    top_k=top_k,
-                    seed=seed,
-                )
+                model_name=model,
+                device=device,
+                max_new_tokens=max_tokens,
+                do_sample=do_sample,
+                temperature=temperature,
+                top_p=top_p,
+                top_k=top_k,
+                seed=seed,
+            )
         elif mode == "chat_lora":
             extractor = HFChatLoRAExtractor(
-                    base_model=model,
-                    lora_path=lora_path,
-                    device=device,
-                    max_new_tokens=max_tokens,
-                    do_sample=do_sample,
-                    temperature=temperature,
-                    top_p=top_p,
-                    top_k=top_k,
-                    seed=seed,
-                )
+                base_model=model,
+                lora_path=lora_path,
+                device=device,
+                max_new_tokens=max_tokens,
+                do_sample=do_sample,
+                temperature=temperature,
+                top_p=top_p,
+                top_k=top_k,
+                seed=seed,
+            )
         else:
-            raise ValueError(f"Unknown mode: {mode}")  
+            raise ValueError(f"Unknown mode: {mode}")
 
         result = extractor.extract_with_result(prompt)
         parse_ok = result.error is None and result.data is not None
@@ -163,7 +171,7 @@ class ExtractionService:
             parse_repaired=False,  # no repair step for local extraction for now
             extractor=extractor_meta,
         )
-    
+
     async def extract_api(
         self,
         *,
@@ -177,16 +185,16 @@ class ExtractionService:
         thinking: Literal["auto", "disabled", "enabled"] = "disabled",
     ) -> ExtractResult:
         """
-            Extraction using an OpenAI-compatible API provider.
-            Providers supported: openai, nvidia.
+        Extraction using an OpenAI-compatible API provider.
+        Providers supported: openai, nvidia.
 
-            Env:
-            OPENAI_API_KEY for provider=openai
-            NVIDIA_API_KEY for provider=nvidia
-            Optional base URL override:
-                OPENAI_BASE_URL, NVIDIA_BASE_URL
-            """
-        
+        Env:
+        OPENAI_API_KEY for provider=openai
+        NVIDIA_API_KEY for provider=nvidia
+        Optional base URL override:
+            OPENAI_BASE_URL, NVIDIA_BASE_URL
+        """
+
         prov: str = provider
         cfg = PROVIDERS[prov]
         if model is None:
@@ -221,7 +229,9 @@ class ExtractionService:
             payload["extra_body"] = {"thinking": {"type": "enabled"}}
 
         if provider == "openai":
-            payload.pop("extra_body", None)  # OpenAI doesn't support thinking control (ignore if present)
+            payload.pop(
+                "extra_body", None
+            )  # OpenAI doesn't support thinking control (ignore if present)
 
         client = OpenAICompatClient(provider=prov)
         resp = await client.chat_completions(payload)

@@ -2,14 +2,14 @@ from __future__ import annotations
 
 import argparse
 import asyncio
-import json
-from pathlib import Path
-from typing import Any, Dict, Optional
 import os
-import uuid, time
+import time
+import uuid
+from pathlib import Path
+from typing import Any, Dict
 
-from src.orch.graph import build_graph
 from src.observability.artifact_writer import JobRunArtifactWriter
+from src.orch.graph import build_graph
 
 ARTIFACTS_DIR = Path(os.getenv("ARTIFACT_DIR", "data/artifacts")) / "langgraph"
 
@@ -44,7 +44,6 @@ async def main_async(args: argparse.Namespace) -> None:
         "metrics": {"node_ms": {}, "route": None},
         "decisions": [],
         "ts_start_utc": started_at,
-
         # ---- v2 structured state
         "run": {
             "run_id": run_id,
@@ -93,13 +92,13 @@ async def main_async(args: argparse.Namespace) -> None:
     elapsed = time.time() - t0
     run_meta = out.get("run", {}) or {}
     input_meta = out.get("input", {}) or {}
-    job_meta = out.get("job", {}) or {}
+    # job_meta = out.get("job", {}) or {}
     route = run_meta.get("route") or "unknown"
     decisions = out.get("decisions", [])
 
     extraction_state = out.get("extraction", {}) or {}
     qc_state = out.get("qc_state", {}) or {}
-    report_state = out.get("report_state", {}) or {}
+    # report_state = out.get("report_state", {}) or {}
 
     legacy_qc = out.get("qc") or {}
 
@@ -127,17 +126,12 @@ async def main_async(args: argparse.Namespace) -> None:
         "started_at": run_meta.get("started_at"),
         "ended_at": run_meta.get("ended_at"),
         "elapsed_sec": round(elapsed, 3),
-
         "qc_status": qc_status,
         "extraction_attempt_count": len(extraction_state.get("attempts", [])),
         "qc_attempt_count": len(qc_state.get("attempts", [])),
-
         "node_ms": out.get("metrics", {}).get("node_ms", {}),
         "decisions": decisions,
-
-        "slo": {
-            "availability_pass": qc_status == "pass"
-        }
+        "slo": {"availability_pass": qc_status == "pass"},
     }
 
     selected_extract_idx = extraction_state.get("selected_attempt")
@@ -163,7 +157,6 @@ async def main_async(args: argparse.Namespace) -> None:
     }
     if not extract_meta_for_legacy["extractor"]:
         extract_meta_for_legacy = out.get("extract_meta", {})
-
 
     writer = JobRunArtifactWriter(args.out_dir)
     job_dir = writer.write(

@@ -1,15 +1,19 @@
 from __future__ import annotations
+
 import sqlite3
 from pathlib import Path
 from typing import List, Tuple
+
 
 def build_report(conn: sqlite3.Connection, out_path: Path) -> None:
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
     total = conn.execute("SELECT COUNT(*) FROM jobs").fetchone()[0]
-    recent = conn.execute("SELECT COUNT(*) FROM jobs WHERE scraped_at_utc >= datetime('now','-7 day')").fetchone()[0]
+    recent = conn.execute(
+        "SELECT COUNT(*) FROM jobs WHERE scraped_at_utc >= datetime('now','-7 day')"
+    ).fetchone()[0]
 
-    top_skills: List[Tuple[str,int]] = conn.execute("""
+    top_skills: List[Tuple[str, int]] = conn.execute("""
         SELECT skill, COUNT(*) as c
         FROM job_skills
         GROUP BY skill

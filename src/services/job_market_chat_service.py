@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, asdict
-from typing import Any, Dict, List, Optional, Literal
+from dataclasses import asdict, dataclass
+from typing import Any, Dict, List, Literal, Optional
 
 from src.llm.json_repair import parse_json_object
 from src.llm.providers.openai_compat_client import OpenAICompatClient
@@ -153,7 +153,7 @@ class JobMarketChatService:
         row = self.job_search_service.get_job_by_id(job_id) or {}
         if not row:
             return {}
-        
+
         return {
             "job_id": str(row.get("job_id", "")),
             "title": row.get("title"),
@@ -166,15 +166,16 @@ class JobMarketChatService:
                 max_chars=2500,
             ),
         }
-    
+
     def _truncate_text(self, text: str, max_chars: int = 2500) -> str:
         text = (text or "").strip()
         if len(text) <= max_chars:
             return text
         return text[:max_chars] + "\n...[truncated]"
-    
+
     def _json_safe_dict(self, obj: Dict[str, Any]) -> Dict[str, Any]:
         import json
+
         return json.loads(json.dumps(obj, ensure_ascii=False, default=str))
 
     def _build_resume_profile(self, resume_text: Optional[str]) -> Dict[str, Any]:
@@ -202,14 +203,16 @@ class JobMarketChatService:
                 market_top_k=5,
             )
             sg = out.get("skill_gap") or {}
-            
+
             return {
                 "fit_score": sg.get("fit_score"),
                 "fit_band": sg.get("fit_band"),
                 "summary": sg.get("summary"),
                 "top_strengths": [x.get("skill") for x in (sg.get("strengths") or [])[:5]],
                 "top_gaps": [x.get("skill") for x in (sg.get("gaps") or [])[:5]],
-                "top_transferable": [x.get("skill") for x in (sg.get("transferable_signals") or [])[:5]],
+                "top_transferable": [
+                    x.get("skill") for x in (sg.get("transferable_signals") or [])[:5]
+                ],
             }
         except Exception:
             return {}
@@ -333,9 +336,7 @@ class JobMarketChatService:
         retrieved_jobs: List[Dict[str, Any]],
         target_job: Dict[str, Any],
     ) -> str:
-        top_titles = [
-            j.get("title") for j in retrieved_jobs[:3] if j.get("title")
-        ]
+        top_titles = [j.get("title") for j in retrieved_jobs[:3] if j.get("title")]
         title_text = ", ".join(top_titles) if top_titles else "similar roles in the corpus"
 
         if target_job:

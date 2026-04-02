@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
 from typing import Any, Dict, List, Optional
 
 
@@ -54,10 +54,7 @@ class QCService:
             reasons.append("structured_missing")
 
         if structured is not None:
-            missing_required_keys = [
-                key for key in require_keys
-                if key not in structured
-            ]
+            missing_required_keys = [key for key in require_keys if key not in structured]
             checks["missing_required_keys"] = missing_required_keys
             if missing_required_keys:
                 reasons.append("missing_required_keys")

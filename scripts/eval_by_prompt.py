@@ -1,10 +1,10 @@
-from eval_base import Eval_Base, load_val, extract_prompt
-from src.llm.providers.hf_plain import HFPlainExtractor
-import json
-from pathlib import Path
-from typing import Dict, Any, List
-from src.eval.extraction_metrics import REQUIRED_KEYS, LIST_KEYS
 import argparse
+from pathlib import Path
+
+from eval_base import Eval_Base, extract_prompt, load_val
+
+from src.llm.providers.hf_plain import HFPlainExtractor
+
 
 def main():
     parser = argparse.ArgumentParser()
@@ -46,6 +46,6 @@ def main():
     conv = eval.compute_coverage(preds)
     print("Prediction coverage:", conv)
 
+
 if __name__ == "__main__":
     main()
-

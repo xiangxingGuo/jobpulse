@@ -1,39 +1,41 @@
 from __future__ import annotations
 
-import os
-import json
-import time
-import math
-import random
-import hashlib
+import argparse
 import asyncio
+import hashlib
+import json
+import math
+import os
+import random
+import time
+from collections import Counter, defaultdict
 from dataclasses import asdict, replace
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, Optional, List
-from collections import Counter, defaultdict
+from typing import Any, Dict, List, Optional
 
-from playwright.async_api import async_playwright
 from playwright.async_api import TimeoutError as PlaywrightTimeoutError
+from playwright.async_api import async_playwright
 from playwright_stealth import Stealth
 
-from src.config import ScrapeConfig
-from src.scrape.list import collect_job_links
-from src.scrape.detail import parse_job_detail, to_dict
-from src.extract import extract_skills
-
 from src import db
-import argparse
+from src.config import ScrapeConfig
+from src.extract import extract_skills
+from src.scrape.detail import parse_job_detail, to_dict
+from src.scrape.list import collect_job_links
 
 # ----------------------------
 # Utils
 # ----------------------------
 
+
 def utc_now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
+
 def sha1_text(s: str) -> str:
     return hashlib.sha1((s or "").encode("utf-8", errors="ignore")).hexdigest()
+
 
 def pctl(values: List[float], q: float) -> Optional[float]:
     if not values:
@@ -42,21 +44,31 @@ def pctl(values: List[float], q: float) -> Optional[float]:
     k = max(0, min(len(xs) - 1, int(math.ceil(q * len(xs))) - 1))
     return xs[k]
 
+
 def ensure_dir(p: Path) -> None:
     p.mkdir(parents=True, exist_ok=True)
 
+
 def emit_log(cfg: ScrapeConfig, level: str, event: str, **fields: Any) -> None:
-    payload = {"ts_utc": utc_now_iso(), "level": level.upper(), "event": event, "run_id": cfg.run_id, **fields}
+    payload = {
+        "ts_utc": utc_now_iso(),
+        "level": level.upper(),
+        "event": event,
+        "run_id": cfg.run_id,
+        **fields,
+    }
     if cfg.log_json:
         print(json.dumps(payload, ensure_ascii=False))
     else:
         msg = " ".join([f"{k}={v}" for k, v in payload.items()])
         print(msg)
 
+
 def compute_backoff(cfg: ScrapeConfig, attempt: int) -> float:
     base = cfg.backoff_base_sec * (2 ** max(0, attempt - 1))
     jitter = random.uniform(0, 0.25 * base)
     return min(cfg.backoff_max_sec, base + jitter)
+
 
 def is_recoverable_exception(e: Exception) -> bool:
     if isinstance(e, PlaywrightTimeoutError):
@@ -64,12 +76,14 @@ def is_recoverable_exception(e: Exception) -> bool:
     msg = str(e).lower()
     return ("timeout" in msg) or ("navigation" in msg and "failed" in msg)
 
+
 async def polite_sleep(cfg: ScrapeConfig) -> None:
     a, b = cfg.sleep_range_sec
     await asyncio.sleep(random.uniform(a, b))
     if random.random() < cfg.extra_pause_prob:
         c, d = cfg.extra_pause_range_sec
         await asyncio.sleep(random.uniform(c, d))
+
 
 def gate_job(cfg: ScrapeConfig, job: Dict[str, Any]) -> tuple[bool, Optional[str]]:
     url = (job.get("url") or "").lower()
@@ -87,6 +101,7 @@ def gate_job(cfg: ScrapeConfig, job: Dict[str, Any]) -> tuple[bool, Optional[str
 
     return True, None
 
+
 def artifact_paths(cfg: ScrapeConfig) -> Dict[str, Path]:
     base = cfg.artifact_dir / cfg.run_id
     return {
@@ -97,9 +112,11 @@ def artifact_paths(cfg: ScrapeConfig) -> Dict[str, Path]:
         "config": base / "config.json",
     }
 
+
 def save_json(path: Path, payload: Dict[str, Any]) -> None:
     ensure_dir(path.parent)
     path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+
 
 def ms(sec: float) -> int:
     return int(sec * 1000)
@@ -157,8 +174,7 @@ class RunMetrics:
             return
         self.seen_jobs_for_skills.add(job_id)
         self.skills_per_job.append(int(skills_n))
-    
-    
+
     def summary(self) -> Dict[str, Any]:
         def summarize(xs: List[float]) -> Dict[str, Any]:
             if not xs:
@@ -171,15 +187,17 @@ class RunMetrics:
                 "max": max(xs),
                 "mean": sum(xs) / len(xs),
             }
-        
+
         fields_denom = len(self.seen_jobs_for_fields)
         dq = {
             "desc_len": summarize(self.desc_len),
             "skills_per_job": summarize(self.skills_per_job),
             "company_nonnull_rate": (self.company_present / fields_denom) if fields_denom else None,
-            "location_nonnull_rate": (self.location_present / fields_denom) if fields_denom else None,
+            "location_nonnull_rate": (self.location_present / fields_denom)
+            if fields_denom
+            else None,
         }
-        
+
         return {
             "counts": dict(self.counts),
             "fail_reasons": dict(self.fail_reasons),
@@ -234,12 +252,24 @@ async def main() -> None:
     if not os.path.exists(auth_file):
         emit_log(cfg, "error", "auth_missing", auth_file=auth_file)
         db.end_run(cfg.run_id, {"error": "auth_missing"}, elapsed_sec=0.0, slo_met=None)
-        raise SystemExit("Missing auth state: run login script first to generate data/auth_state.json")
+        raise SystemExit(
+            "Missing auth state: run login script first to generate data/auth_state.json"
+        )
 
     metrics = RunMetrics()
     run_t0 = time.monotonic()
 
-    emit_log(cfg, "info", "run_start", config={"pages": cfg.pages, "per_page": cfg.per_page, "limit": cfg.limit, "headless": cfg.headless})
+    emit_log(
+        cfg,
+        "info",
+        "run_start",
+        config={
+            "pages": cfg.pages,
+            "per_page": cfg.per_page,
+            "limit": cfg.limit,
+            "headless": cfg.headless,
+        },
+    )
 
     bad_saved = 0
     fail_saved = 0
@@ -255,11 +285,20 @@ async def main() -> None:
 
         # ---- collect links
         t0 = time.monotonic()
-        job_links = await collect_job_links(page, pages=cfg.pages, per_page=cfg.per_page, timeout_ms=cfg.networkidle_timeout_ms)
+        job_links = await collect_job_links(
+            page, pages=cfg.pages, per_page=cfg.per_page, timeout_ms=cfg.networkidle_timeout_ms
+        )
         dt = time.monotonic() - t0
         metrics.record_stage("collect_links", dt)
         metrics.inc("links_collected_total", len(job_links))
-        db.record_event(cfg.run_id, stage="collect_links", status="ok", reason=None, elapsed_ms=ms(dt), details={"count": len(job_links)})
+        db.record_event(
+            cfg.run_id,
+            stage="collect_links",
+            status="ok",
+            reason=None,
+            elapsed_ms=ms(dt),
+            details={"count": len(job_links)},
+        )
         emit_log(cfg, "info", "links_collected", count=len(job_links), elapsed_sec=round(dt, 3))
 
         # filter existing
@@ -289,7 +328,14 @@ async def main() -> None:
                     jd_obj = await parse_job_detail(page, url, timeout_ms=cfg.goto_timeout_ms)
                     dt1 = time.monotonic() - t1
                     metrics.record_stage("parse_detail", dt1)
-                    db.record_event(cfg.run_id, job_id=job_id, url=url, stage="parse_detail", status="ok", elapsed_ms=ms(dt1))
+                    db.record_event(
+                        cfg.run_id,
+                        job_id=job_id,
+                        url=url,
+                        stage="parse_detail",
+                        status="ok",
+                        elapsed_ms=ms(dt1),
+                    )
                     last_exc = None
                     break
                 except Exception as e:
@@ -297,12 +343,29 @@ async def main() -> None:
                     recoverable = is_recoverable_exception(e)
                     reason = f"parse_failed:{type(e).__name__}"
                     db.record_event(
-                        cfg.run_id, job_id=job_id, url=url, stage="parse_detail",
-                        status="fail", reason=reason, details={"attempt": attempt, "recoverable": recoverable, "error": str(e)[:400]}
+                        cfg.run_id,
+                        job_id=job_id,
+                        url=url,
+                        stage="parse_detail",
+                        status="fail",
+                        reason=reason,
+                        details={
+                            "attempt": attempt,
+                            "recoverable": recoverable,
+                            "error": str(e)[:400],
+                        },
                     )
-                    emit_log(cfg, "warn" if recoverable else "error", "job_parse_error",
-                             job_id=job_id, url=url, attempt=attempt, recoverable=recoverable,
-                             error_type=type(e).__name__, error=str(e)[:400])
+                    emit_log(
+                        cfg,
+                        "warn" if recoverable else "error",
+                        "job_parse_error",
+                        job_id=job_id,
+                        url=url,
+                        attempt=attempt,
+                        recoverable=recoverable,
+                        error_type=type(e).__name__,
+                        error=str(e)[:400],
+                    )
                     if (not recoverable) or attempt >= (cfg.max_retries + 1):
                         break
                     await asyncio.sleep(compute_backoff(cfg, attempt))
@@ -311,8 +374,15 @@ async def main() -> None:
                 reason = f"parse_failed:{type(last_exc).__name__ if last_exc else 'unknown'}"
                 metrics.fail(reason)
                 if cfg.save_bad_samples and fail_saved < cfg.bad_sample_max:
-                    save_json(arts["fail_samples"] / f"{fail_saved:03d}_{job_id or 'unknown'}.json",
-                              {"job_id": job_id, "url": url, "reason": reason, "error": str(last_exc) if last_exc else None})
+                    save_json(
+                        arts["fail_samples"] / f"{fail_saved:03d}_{job_id or 'unknown'}.json",
+                        {
+                            "job_id": job_id,
+                            "url": url,
+                            "reason": reason,
+                            "error": str(last_exc) if last_exc else None,
+                        },
+                    )
                     fail_saved += 1
                 continue
 
@@ -346,7 +416,14 @@ async def main() -> None:
             ok, gate_reason = gate_job(cfg, job)
             if not ok:
                 metrics.gate(gate_reason or "gated_unknown")
-                db.record_event(cfg.run_id, job_id=job_id, url=url, stage="gate", status="gated", reason=gate_reason)
+                db.record_event(
+                    cfg.run_id,
+                    job_id=job_id,
+                    url=url,
+                    stage="gate",
+                    status="gated",
+                    reason=gate_reason,
+                )
                 emit_log(cfg, "info", "job_gated", job_id=job_id, url=url, reason=gate_reason)
 
                 # record in jobs table as "gated" (optional but good for audit)
@@ -371,10 +448,10 @@ async def main() -> None:
                     )
                     bad_saved += 1
                 continue
-                
+
             new_hash = job.get("content_hash") or sha1_text(job.get("description") or "")
             old_hash = db.get_job_content_hash(job_id) if job_id else None
-            
+
             # db upsert
             try:
                 t2 = time.monotonic()
@@ -382,25 +459,56 @@ async def main() -> None:
                 dt2 = time.monotonic() - t2
                 metrics.record_stage("db_upsert_job", dt2)
                 metrics.inc("jobs_upserted", 1)
-                db.record_event(cfg.run_id, job_id=job_id, url=url, stage="db_upsert_job", status="ok", elapsed_ms=ms(dt2))
+                db.record_event(
+                    cfg.run_id,
+                    job_id=job_id,
+                    url=url,
+                    stage="db_upsert_job",
+                    status="ok",
+                    elapsed_ms=ms(dt2),
+                )
             except Exception as e:
                 reason = f"db_upsert_failed:{type(e).__name__}"
                 metrics.fail(reason)
-                db.record_event(cfg.run_id, job_id=job_id, url=url, stage="db_upsert_job", status="fail", reason=reason, details={"error": str(e)[:400]})
-                emit_log(cfg, "error", "db_upsert_error", job_id=job_id, url=url, error_type=type(e).__name__, error=str(e)[:400])
+                db.record_event(
+                    cfg.run_id,
+                    job_id=job_id,
+                    url=url,
+                    stage="db_upsert_job",
+                    status="fail",
+                    reason=reason,
+                    details={"error": str(e)[:400]},
+                )
+                emit_log(
+                    cfg,
+                    "error",
+                    "db_upsert_error",
+                    job_id=job_id,
+                    url=url,
+                    error_type=type(e).__name__,
+                    error=str(e)[:400],
+                )
 
                 if cfg.save_bad_samples and fail_saved < cfg.bad_sample_max:
-                    save_json(arts["fail_samples"] / f"{fail_saved:03d}_{job_id or 'unknown'}.json",
-                              {"job_id": job_id, "url": url, "reason": reason, "error": str(e)})
+                    save_json(
+                        arts["fail_samples"] / f"{fail_saved:03d}_{job_id or 'unknown'}.json",
+                        {"job_id": job_id, "url": url, "reason": reason, "error": str(e)},
+                    )
                     fail_saved += 1
                 continue
 
             # skills: skip if content hash unchanged
             try:
-
                 if old_hash and new_hash and old_hash == new_hash:
                     metrics.inc("skills_skipped_hash_unchanged", 1)
-                    db.record_event(cfg.run_id, job_id=job_id, url=url, stage="extract_skills", status="ok", reason="skipped_hash_unchanged")
+                    db.record_event(
+                        cfg.run_id,
+                        job_id=job_id,
+                        url=url,
+                        stage="extract_skills",
+                        status="ok",
+                        reason="skipped_hash_unchanged",
+                    )
                     emit_log(cfg, "info", "skills_skipped", job_id=job_id, reason="hash_unchanged")
 
                 else:
@@ -408,52 +516,104 @@ async def main() -> None:
                     skills = extract_skills(job.get("description") or "")
                     dt3 = time.monotonic() - t3
                     metrics.record_stage("extract_skills", dt3)
-                    db.record_event(cfg.run_id, job_id=job_id, url=url, stage="extract_skills", status="ok", elapsed_ms=ms(dt3), details={"skills_n": len(skills)})
+                    db.record_event(
+                        cfg.run_id,
+                        job_id=job_id,
+                        url=url,
+                        stage="extract_skills",
+                        status="ok",
+                        elapsed_ms=ms(dt3),
+                        details={"skills_n": len(skills)},
+                    )
 
                     t4 = time.monotonic()
                     db.replace_job_skills(job_id, skills)
                     dt4 = time.monotonic() - t4
                     metrics.record_stage("db_replace_skills", dt4)
-                    db.record_event(cfg.run_id, job_id=job_id, url=url, stage="db_replace_skills", status="ok", elapsed_ms=ms(dt4))
+                    db.record_event(
+                        cfg.run_id,
+                        job_id=job_id,
+                        url=url,
+                        stage="db_replace_skills",
+                        status="ok",
+                        elapsed_ms=ms(dt4),
+                    )
 
                     metrics.inc("skills_jobs_written", 1)
                     metrics.inc("skills_total_written", len(skills))
 
                     metrics.record_skills_n(jid, len(skills))
                     db.record_event(
-                        cfg.run_id, job_id=job_id, url=url,
+                        cfg.run_id,
+                        job_id=job_id,
+                        url=url,
                         stage="dq_skills",
                         status="ok",
-                        details={"skills_n": len(skills)}
+                        details={"skills_n": len(skills)},
                     )
 
             except Exception as e:
                 reason = f"skills_failed:{type(e).__name__}"
                 metrics.fail(reason)
-                db.record_event(cfg.run_id, job_id=job_id, url=url, stage="extract_skills", status="fail", reason=reason, details={"error": str(e)[:400]})
-                emit_log(cfg, "warn", "skills_error", job_id=job_id, url=url, error_type=type(e).__name__, error=str(e)[:400])
+                db.record_event(
+                    cfg.run_id,
+                    job_id=job_id,
+                    url=url,
+                    stage="extract_skills",
+                    status="fail",
+                    reason=reason,
+                    details={"error": str(e)[:400]},
+                )
+                emit_log(
+                    cfg,
+                    "warn",
+                    "skills_error",
+                    job_id=job_id,
+                    url=url,
+                    error_type=type(e).__name__,
+                    error=str(e)[:400],
+                )
 
             metrics.record_job_total(time.monotonic() - job_t0)
-            emit_log(cfg, "info", "job_done", job_id=job_id, url=url, elapsed_sec=round(time.monotonic() - job_t0, 3))
+            emit_log(
+                cfg,
+                "info",
+                "job_done",
+                job_id=job_id,
+                url=url,
+                elapsed_sec=round(time.monotonic() - job_t0, 3),
+            )
 
         await context.close()
         await browser.close()
 
     run_elapsed = time.monotonic() - run_t0
     summary = metrics.summary()
-    summary.update({
-        "run_id": cfg.run_id,
-        "finished_utc": utc_now_iso(),
-        "elapsed_sec": run_elapsed,
-        "artifacts_dir": str(arts["base"]),
-        "config": {"pages": cfg.pages, "per_page": cfg.per_page, "limit": cfg.limit, "headless": cfg.headless, "max_retries": cfg.max_retries},
-    })
+    summary.update(
+        {
+            "run_id": cfg.run_id,
+            "finished_utc": utc_now_iso(),
+            "elapsed_sec": run_elapsed,
+            "artifacts_dir": str(arts["base"]),
+            "config": {
+                "pages": cfg.pages,
+                "per_page": cfg.per_page,
+                "limit": cfg.limit,
+                "headless": cfg.headless,
+                "max_retries": cfg.max_retries,
+            },
+        }
+    )
 
     processed = summary["counts"].get("jobs_parsed_ok", 0)
     succeeded = summary["counts"].get("jobs_upserted", 0)
     success_rate = (succeeded / processed) if processed else None
-    slo_met = (success_rate is not None and success_rate >= cfg.slo_success_rate)
-    summary["slo"] = {"success_rate": success_rate, "target_success_rate": cfg.slo_success_rate, "met": slo_met}
+    slo_met = success_rate is not None and success_rate >= cfg.slo_success_rate
+    summary["slo"] = {
+        "success_rate": success_rate,
+        "target_success_rate": cfg.slo_success_rate,
+        "met": slo_met,
+    }
 
     dq = summary.get("data_quality", {})
     desc_p50 = (dq.get("desc_len") or {}).get("p50")
@@ -470,19 +630,40 @@ async def main() -> None:
             "skills_per_job_p50": skills_p50,
         },
         "met": (
-            (desc_p50 is not None and desc_p50 >= cfg.dq_desc_len_p50_min) and
-            (company_rate is not None and company_rate >= cfg.dq_company_nonnull_rate_min) and
-            (skills_p50 is not None and skills_p50 >= cfg.dq_skills_per_job_p50_min)
-        )
+            (desc_p50 is not None and desc_p50 >= cfg.dq_desc_len_p50_min)
+            and (company_rate is not None and company_rate >= cfg.dq_company_nonnull_rate_min)
+            and (skills_p50 is not None and skills_p50 >= cfg.dq_skills_per_job_p50_min)
+        ),
     }
     summary["dq_slo"] = dq_slo
 
     save_json(arts["run_summary"], summary)
     db.end_run(cfg.run_id, summary, elapsed_sec=run_elapsed, slo_met=slo_met)
 
-    emit_log(cfg, "info", "run_end", elapsed_sec=round(run_elapsed, 3), counts=summary["counts"], slo=summary["slo"])
-    emit_log(cfg, "info", "artifacts_written", dir=str(arts["base"]), run_summary=str(arts["run_summary"]))
-    emit_log(cfg, "info", "run_end", elapsed_sec=round(run_elapsed, 3), counts=summary["counts"], slo=summary["slo"], dq_slo=summary.get("dq_slo"))
+    emit_log(
+        cfg,
+        "info",
+        "run_end",
+        elapsed_sec=round(run_elapsed, 3),
+        counts=summary["counts"],
+        slo=summary["slo"],
+    )
+    emit_log(
+        cfg,
+        "info",
+        "artifacts_written",
+        dir=str(arts["base"]),
+        run_summary=str(arts["run_summary"]),
+    )
+    emit_log(
+        cfg,
+        "info",
+        "run_end",
+        elapsed_sec=round(run_elapsed, 3),
+        counts=summary["counts"],
+        slo=summary["slo"],
+        dq_slo=summary.get("dq_slo"),
+    )
 
 
 if __name__ == "__main__":

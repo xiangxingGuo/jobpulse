@@ -1,7 +1,9 @@
 from pathlib import Path
-from playwright.sync_api import sync_playwright, TimeoutError as PWTimeoutError
+
+from playwright.sync_api import sync_playwright
 
 STATE_PATH = Path("data/auth_state.json")
+
 
 def main():
     if not STATE_PATH.exists():
@@ -25,6 +27,7 @@ def main():
 
         print("✅ Logged-in state looks OK.")
         browser.close()
+
 
 if __name__ == "__main__":
     main()

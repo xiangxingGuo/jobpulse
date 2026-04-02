@@ -3,7 +3,16 @@ from typing import Dict, List, Set
 
 SKILL_MAP: Dict[str, List[str]] = {
     "python": ["python"],
-    "sql": ["sql", "postgres", "postgresql", "mysql", "sqlite", "bigquery", "snowflake", "redshift"],
+    "sql": [
+        "sql",
+        "postgres",
+        "postgresql",
+        "mysql",
+        "sqlite",
+        "bigquery",
+        "snowflake",
+        "redshift",
+    ],
     "pytorch": ["pytorch"],
     "tensorflow": ["tensorflow", "tf"],
     "sklearn": ["scikit-learn", "sklearn"],
@@ -22,6 +31,7 @@ SKILL_MAP: Dict[str, List[str]] = {
     "llm": ["llm", "large language model", "gpt", "transformer"],
     "nlp": ["nlp", "natural language processing"],
 }
+
 
 def extract_skills_rule_based(text: str) -> Set[str]:
     t = text.lower()

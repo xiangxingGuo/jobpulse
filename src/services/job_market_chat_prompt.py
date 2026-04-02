@@ -32,14 +32,12 @@ def build_job_market_chat_messages(
         "3. Optional target job detail\n"
         "4. Optional resume profile\n"
         "5. Optional skill-gap analysis\n\n"
-
         "Your task:\n"
         "- answer the user question clearly and practically\n"
         "- stay grounded in the provided context\n"
         "- compare jobs when useful\n"
         "- mention uncertainty when evidence is limited\n"
         "- do not fabricate skills or requirements\n\n"
-
         "Return output in exactly this JSON format:\n"
         "{\n"
         '  "answer": "string",\n'
@@ -52,7 +50,6 @@ def build_job_market_chat_messages(
         "    }\n"
         "  ]\n"
         "}\n\n"
-
         f"QUESTION:\n{question}\n\n"
         f"RETRIEVED_JOBS_JSON:\n{_pretty(retrieved_jobs)}\n\n"
         f"TARGET_JOB_JSON:\n{_pretty(target_job)}\n\n"

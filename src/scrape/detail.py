@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, asdict
-from typing import Optional
 import re
+from dataclasses import asdict, dataclass
+from typing import Optional
 
 from playwright.async_api import Page
 
@@ -41,7 +41,9 @@ async def _click_expanders(page: Page) -> None:
                 await page.wait_for_timeout(200)
                 if page.url != before_url:
                     # hard guard: expander must not navigate
-                    raise RuntimeError(f"Unexpected navigation after expander click: {before_url} -> {page.url}")
+                    raise RuntimeError(
+                        f"Unexpected navigation after expander click: {before_url} -> {page.url}"
+                    )
             except Exception:
                 continue
 
@@ -102,9 +104,11 @@ async def parse_job_detail(page: Page, url: str, timeout_ms: int = 20000) -> Job
 
     # posted/apply-by line
     try:
-        posted_line = (await root.locator("h1").locator(
-            "xpath=following::div[contains(.,'Posted') and contains(.,'Apply by')][1]"
-        ).inner_text()).strip()
+        posted_line = (
+            await root.locator("h1")
+            .locator("xpath=following::div[contains(.,'Posted') and contains(.,'Apply by')][1]")
+            .inner_text()
+        ).strip()
 
         m = re.search(r"Posted\s+(.+?)(?:∙|\u2219)\s*Apply by\s+(.+)$", posted_line)
         jd.posted_text = m.group(1).strip() if m else None
@@ -155,7 +159,11 @@ async def parse_job_detail(page: Page, url: str, timeout_ms: int = 20000) -> Job
                     jd.opt_cpt_text = ln
                 if ln in ("Internship", "Full-time", "Part-time", "Contract"):
                     jd.employment_type = ln
-                if ln.startswith("Full-time∙From") or ln.startswith("Part-time∙From") or ln.startswith("From"):
+                if (
+                    ln.startswith("Full-time∙From")
+                    or ln.startswith("Part-time∙From")
+                    or ln.startswith("From")
+                ):
                     jd.date_range_text = ln
     except Exception:
         pass

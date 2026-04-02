@@ -4,14 +4,13 @@ import streamlit as st
 
 from src.ui.components import render_header
 from src.ui.state import init_state
-from src.ui.views.overview import render_overview_page
-from src.ui.views.search import render_search_page
 from src.ui.views.analytics import render_analytics_page
-from src.ui.views.pipeline import render_pipeline_page
-from src.ui.views.resume_match import render_resume_match_page
 from src.ui.views.job_market_chat import render_job_market_chat_page
 from src.ui.views.lex_career_coach import render_lex_career_coach_page
-
+from src.ui.views.overview import render_overview_page
+from src.ui.views.pipeline import render_pipeline_page
+from src.ui.views.resume_match import render_resume_match_page
+from src.ui.views.search import render_search_page
 
 st.set_page_config(page_title="JobPulse", layout="wide")
 

@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 import argparse
 import json
 from pathlib import Path
@@ -7,6 +8,7 @@ from src.db import fetch_jobs_for_retrieval
 from src.retrieval.documents import build_documents
 from src.retrieval.embed import EmbeddingModel
 from src.retrieval.faiss_index import JobFaissIndex
+
 
 def main() -> None:
     ap = argparse.ArgumentParser()
@@ -40,6 +42,7 @@ def main() -> None:
         encoding="utf-8",
     )
     print(json.dumps(summary, ensure_ascii=False, indent=2))
+
 
 if __name__ == "__main__":
     main()

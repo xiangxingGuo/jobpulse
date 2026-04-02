@@ -44,6 +44,7 @@ def render_result_card(job: dict) -> tuple[bool, bool]:
         show_similar = c2.button("Similar", key=f"similar_{job_id}", use_container_width=True)
         return show_details, show_similar
 
+
 def render_job_detail(detail: dict | None) -> None:
     st.subheader("Job Details")
 
@@ -84,7 +85,6 @@ def render_job_detail(detail: dict | None) -> None:
         )
 
 
-
 def render_similar_jobs(similar_jobs: list[dict]) -> None:
     st.subheader("Similar Jobs")
     if not similar_jobs:
@@ -123,8 +123,12 @@ def render_match_card(job: dict) -> tuple[bool, bool]:
                 st.write(f"- {reason}")
 
         c1, c2 = st.columns(2)
-        show_details = c1.button("View Job", key=f"resume_detail_{job_id}", use_container_width=True)
-        show_similar = c2.button("Similar Jobs", key=f"resume_similar_{job_id}", use_container_width=True)
+        show_details = c1.button(
+            "View Job", key=f"resume_detail_{job_id}", use_container_width=True
+        )
+        show_similar = c2.button(
+            "Similar Jobs", key=f"resume_similar_{job_id}", use_container_width=True
+        )
         return show_details, show_similar
 
 
@@ -145,7 +149,9 @@ def render_clickable_similar_jobs(similar_jobs: list[dict], key_prefix: str = "s
             st.write(f"Score: {job.get('score', 0.0):.4f}")
 
             c1, c2 = st.columns([1, 1])
-            if c1.button("Open Details", key=f"{key_prefix}_open_{job_id}", use_container_width=True):
+            if c1.button(
+                "Open Details", key=f"{key_prefix}_open_{job_id}", use_container_width=True
+            ):
                 selected_job_id = job_id
             if job.get("url"):
                 c2.markdown(f"[Open posting]({job['url']})")
@@ -191,6 +197,7 @@ def render_inline_job_detail(detail: dict | None) -> None:
             key=f"desc_{detail.get('job_id')}",
         )
 
+
 def render_inline_similar_jobs(similar_jobs: list[dict], key_prefix: str = "sim") -> str | None:
     if not similar_jobs:
         st.info("No similar jobs loaded.")
@@ -206,7 +213,9 @@ def render_inline_similar_jobs(similar_jobs: list[dict], key_prefix: str = "sim"
             st.write(f"Score: {job.get('score', 0.0):.4f}")
 
             c1, c2 = st.columns([1, 1])
-            if c1.button("Open Details", key=f"{key_prefix}_open_{job_id}", use_container_width=True):
+            if c1.button(
+                "Open Details", key=f"{key_prefix}_open_{job_id}", use_container_width=True
+            ):
                 selected_job_id = job_id
             if job.get("url"):
                 c2.markdown(f"[Open posting]({job['url']})")

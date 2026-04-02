@@ -1,16 +1,18 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Dict, Literal, Optional
+from typing import Dict, Literal
 
 ProviderName = Literal["openai", "nvidia"]
+
 
 @dataclass(frozen=True)
 class ProviderConfig:
     name: ProviderName
-    base_url: str          # e.g. https://api.openai.com or https://integrate.api.nvidia.com/v1
-    api_key_env: str       # env var name
+    base_url: str  # e.g. https://api.openai.com or https://integrate.api.nvidia.com/v1
+    api_key_env: str  # env var name
     default_model: str
+
 
 PROVIDERS: Dict[ProviderName, ProviderConfig] = {
     "openai": ProviderConfig(

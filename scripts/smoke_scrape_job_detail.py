@@ -1,7 +1,9 @@
 from pathlib import Path
+
 from playwright.sync_api import sync_playwright
 
 STATE_PATH = Path("data/auth_state.json")
+
 
 def main():
     if not STATE_PATH.exists():
@@ -9,7 +11,9 @@ def main():
 
     links_file = Path("data/raw/job_links_page1.txt")
     if not links_file.exists():
-        raise SystemExit("Missing data/raw/job_links_page1.txt. Run smoke_collect_job_links.py first.")
+        raise SystemExit(
+            "Missing data/raw/job_links_page1.txt. Run smoke_collect_job_links.py first."
+        )
 
     first_url = links_file.read_text(encoding="utf-8").splitlines()[0].strip()
     print("Opening:", first_url)
@@ -34,6 +38,7 @@ def main():
         print("Body snippet:\n", body[:1200])
 
         browser.close()
+
 
 if __name__ == "__main__":
     main()

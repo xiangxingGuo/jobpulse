@@ -1,11 +1,9 @@
 import json
 from pathlib import Path
-from typing import Dict, Any, List
+from typing import Any, Dict, List
 
+from src.eval.extraction_metrics import LIST_KEYS, SCALAR_KEYS, macro_list_f1, non_empty_rate
 from src.llm.providers.hf_local import HFLocalExtractor
-from src.eval.extraction_metrics import (
-    LIST_KEYS, SCALAR_KEYS, non_empty_rate, macro_list_f1
-)
 
 VAL_PATH = Path("src/training/datasets/jd_struct_val.jsonl")
 OUT_DIR = Path("data/reports")
@@ -55,7 +53,9 @@ def main():
         try:
             pred = extractor.extract(prompt)
             student_preds.append(pred)
-            (OUT_PRED_DIR / f"{job_id}.json").write_text(json.dumps(pred, indent=2, ensure_ascii=False))
+            (OUT_PRED_DIR / f"{job_id}.json").write_text(
+                json.dumps(pred, indent=2, ensure_ascii=False)
+            )
         except Exception as e:
             failures += 1
             # store empty pred to keep alignment
@@ -79,7 +79,7 @@ def main():
     lines.append("\n## Field coverage (non-empty rate)\n")
     lines.append("| Field | Teacher non-empty | Student non-empty |\n")
     lines.append("|---|---:|---:|\n")
-    for k in (SCALAR_KEYS + LIST_KEYS):
+    for k in SCALAR_KEYS + LIST_KEYS:
         lines.append(f"| {k} | {teacher_cov[k]:.2f} | {student_cov[k]:.2f} |\n")
 
     lines.append("\n## Proxy list F1 (student vs teacher)\n")

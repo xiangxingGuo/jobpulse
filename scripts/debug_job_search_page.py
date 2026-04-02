@@ -1,4 +1,5 @@
 from pathlib import Path
+
 from playwright.sync_api import sync_playwright
 
 STATE_PATH = Path("data/auth_state.json")
@@ -7,10 +8,12 @@ URL = "https://app.joinhandshake.com/job-search?page=1&per_page=25"
 OUT_DIR = Path("data/raw")
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 
+
 def scroll_some(page, steps=6):
     for _ in range(steps):
         page.mouse.wheel(0, 1200)
         page.wait_for_timeout(800)
+
 
 def main():
     if not STATE_PATH.exists():
@@ -83,7 +86,19 @@ def main():
                     pass
 
                 # Filter by keywords: job pages usually contain these words
-                key_hit = any(k in txt.lower() for k in ["intern", "engineer", "data", "software", "machine", "research", "analyst", "apply"])
+                key_hit = any(
+                    k in txt.lower()
+                    for k in [
+                        "intern",
+                        "engineer",
+                        "data",
+                        "software",
+                        "machine",
+                        "research",
+                        "analyst",
+                        "apply",
+                    ]
+                )
                 if not key_hit:
                     continue
 
@@ -102,6 +117,7 @@ def main():
         print("Title:", page.title())
 
         browser.close()
+
 
 if __name__ == "__main__":
     main()

@@ -3,11 +3,11 @@ from __future__ import annotations
 import streamlit as st
 
 from src.ui.api_client import (
-    start_career_session,
-    send_career_message,
     get_career_session,
-    parse_resume_file,
     match_resume,
+    parse_resume_file,
+    send_career_message,
+    start_career_session,
 )
 
 
@@ -127,10 +127,7 @@ def render_lex_career_coach_page() -> None:
     if st.session_state["aws_coach_session_id"]:
         st.query_params["career_session_id"] = st.session_state["aws_coach_session_id"]
 
-    if (
-        st.session_state["aws_coach_session_id"]
-        and not st.session_state["aws_coach_messages"]
-    ):
+    if st.session_state["aws_coach_session_id"] and not st.session_state["aws_coach_messages"]:
         try:
             restored = get_career_session(st.session_state["aws_coach_session_id"])
             st.session_state["aws_coach_messages"] = restored.get("history", [])
@@ -232,9 +229,7 @@ def render_lex_career_coach_page() -> None:
         st.warning("Please enter a message.")
         return
 
-    st.session_state["aws_coach_messages"].append(
-        {"role": "user", "content": cleaned}
-    )
+    st.session_state["aws_coach_messages"].append({"role": "user", "content": cleaned})
 
     with st.chat_message("user"):
         st.write(cleaned)
@@ -251,9 +246,7 @@ def render_lex_career_coach_page() -> None:
             return
 
     reply = out.get("reply") or "Sorry, I did not receive a reply."
-    st.session_state["aws_coach_messages"].append(
-        {"role": "assistant", "content": reply}
-    )
+    st.session_state["aws_coach_messages"].append({"role": "assistant", "content": reply})
     st.session_state["aws_coach_done"] = bool(out.get("done", False))
     st.query_params["page"] = "AWS Career Coach"
     st.query_params["career_session_id"] = st.session_state["aws_coach_session_id"]

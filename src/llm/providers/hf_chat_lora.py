@@ -1,10 +1,9 @@
 from __future__ import annotations
 
-from typing import Optional, Sequence, Dict, Any
+from typing import Any, Dict, Optional, Sequence
 
 import torch
-from transformers import AutoTokenizer, AutoModelForCausalLM
-from src.llm.json_repair import parse_json_object
+from transformers import AutoModelForCausalLM, AutoTokenizer
 
 from .base import BaseExtractor
 
@@ -25,7 +24,6 @@ class HFChatLoRAExtractor(BaseExtractor):
         device_map: Optional[str] = None,
         required_keys: Optional[Sequence[str]] = None,
         list_keys: Optional[Sequence[str]] = None,
-
         # NEW: generation controls
         do_sample: bool = False,
         temperature: float = 0.0,
@@ -75,6 +73,7 @@ class HFChatLoRAExtractor(BaseExtractor):
 
         if lora_path:
             from peft import PeftModel  # lazy import
+
             self.model = PeftModel.from_pretrained(self.model, lora_path)
 
         self.model.eval()

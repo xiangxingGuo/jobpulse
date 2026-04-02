@@ -1,16 +1,24 @@
 from __future__ import annotations
+
 from dataclasses import dataclass
 from typing import Any, Dict, List, Set, Tuple
 
 REQUIRED_KEYS = [
-    "role_title", "company", "location", "employment_type",
-    "remote_policy", "responsibilities", "requirements",
-    "preferred_qualifications", "skills", "years_experience_min",
-    "degree_level", "visa_sponsorship"
+    "role_title",
+    "company",
+    "location",
+    "employment_type",
+    "remote_policy",
+    "responsibilities",
+    "requirements",
+    "preferred_qualifications",
+    "skills",
+    "years_experience_min",
+    "degree_level",
+    "visa_sponsorship",
 ]
 
-LIST_KEYS = ["responsibilities", "requirements", 
-             "preferred_qualifications", "skills"]
+LIST_KEYS = ["responsibilities", "requirements", "preferred_qualifications", "skills"]
 
 SCALAR_KEYS = [k for k in REQUIRED_KEYS if k not in LIST_KEYS]
 
@@ -25,7 +33,7 @@ def _norm_item(x: Any) -> str:
 def _to_set(lst: Any) -> Set[str]:
     if not isinstance(lst, list):
         return set()
-    return { _norm_item(x) for x in lst if _norm_item(x) }
+    return {_norm_item(x) for x in lst if _norm_item(x)}
 
 
 def set_f1(pred: Any, gold: Any) -> Tuple[float, float, float]:
@@ -67,7 +75,9 @@ class ListKeyScores:
     f1: float
 
 
-def macro_list_f1(preds: List[Dict[str, Any]], golds: List[Dict[str, Any]], key: str) -> ListKeyScores:
+def macro_list_f1(
+    preds: List[Dict[str, Any]], golds: List[Dict[str, Any]], key: str
+) -> ListKeyScores:
     assert len(preds) == len(golds)
     ps, rs, fs = 0.0, 0.0, 0.0
     n = len(preds)

@@ -28,9 +28,6 @@ def init_state() -> None:
         "resume_expanded_job_id": None,
         "resume_expanded_job_detail": None,
         "resume_expanded_similar_jobs": [],
-
-
-
     }
 
     for key, value in defaults.items():

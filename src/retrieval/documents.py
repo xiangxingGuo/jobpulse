@@ -1,12 +1,15 @@
 from __future__ import annotations
+
 from dataclasses import dataclass
 from typing import Any
+
 
 @dataclass
 class EmbeddingDocument:
     job_id: str
     text: str
     metadata: dict[str, Any]
+
 
 def build_embedding_text(job: dict[str, Any]) -> str:
     structured = job.get("structured") or {}
@@ -41,6 +44,7 @@ def build_embedding_text(job: dict[str, Any]) -> str:
         parts.append(f"Raw Description:\n{raw_desc[:4000]}")
 
     return "\n\n".join([p for p in parts if p.strip()])
+
 
 def build_documents(rows: list[dict[str, Any]]) -> list[EmbeddingDocument]:
     docs = []

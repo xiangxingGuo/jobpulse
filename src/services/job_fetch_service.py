@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, asdict
-from typing import Any, Dict, Optional
 import hashlib
+from dataclasses import asdict, dataclass
+from typing import Any, Dict, Optional
 
 from src.db import get_conn, init_db
+
 
 @dataclass
 class JobFetchResult:
@@ -23,6 +24,7 @@ class JobFetchService:
     Service for fetching job data.
     It returns only the data needed by orchestration layers.
     """
+
     async def fetch(self, job_id: str, source: str = "handshake") -> JobFetchResult:
         source = (source or "handshake").strip().lower()
 
@@ -34,7 +36,7 @@ class JobFetchService:
             return await self._fetch_indeed(job_id)
 
         raise ValueError(f"Unsupported source: {source}")
-    
+
     async def _fetch_handshake(self, job_id: str) -> JobFetchResult:
         conn = get_conn()
         try:
@@ -68,9 +70,9 @@ class JobFetchService:
             )
         finally:
             conn.close()
-    
+
     async def _fetch_greenhouse(self, job_id: str) -> JobFetchResult:
         raise NotImplementedError("Greenhouse fetch is not implemented yet.")
-    
+
     async def _fetch_indeed(self, job_id: str) -> JobFetchResult:
         raise NotImplementedError("Indeed fetch is not implemented yet.")

@@ -1,12 +1,11 @@
 from __future__ import annotations
 
-from typing import Any, Dict, Optional, Tuple, List, Literal
-
-from src.orch.schema import ExtractLocalOutput, JobStructured
-from src.llm.providers.hf_plain import HFPlainExtractor
-from src.llm.providers.hf_chat_lora import HFChatLoRAExtractor
-
 from pathlib import Path
+from typing import Any, Dict, Literal, Optional
+
+from src.llm.providers.hf_chat_lora import HFChatLoRAExtractor
+from src.llm.providers.hf_plain import HFPlainExtractor
+from src.orch.schema import ExtractLocalOutput, JobStructured
 
 PROMPTS = {
     "jd_extract_v1": Path("src/llm/prompts/jd_extract_v1.txt"),
@@ -28,15 +27,18 @@ def extract_local(
     job_id: str,
     jd_text: str,
     prompt_name: str = "jd_extract_v2",
-    model: Literal["Qwen/Qwen2.5-0.5B-Instruct", "Qwen/Qwen2.5-3B-Instruct", "meta-llama/Llama-3.2-1B-Instruct", "meta-llama/Llama-3.2-3B-Instruct"] = "Qwen/Qwen2.5-0.5B-Instruct",
+    model: Literal[
+        "Qwen/Qwen2.5-0.5B-Instruct",
+        "Qwen/Qwen2.5-3B-Instruct",
+        "meta-llama/Llama-3.2-1B-Instruct",
+        "meta-llama/Llama-3.2-3B-Instruct",
+    ] = "Qwen/Qwen2.5-0.5B-Instruct",
     lora_path: Optional[str] = "models/qwen2.5-0.5b-jd-lora",
     mode: Literal["plain", "chat_lora"] = "plain",
     device: Literal["cuda", "cpu"] = "cuda",
-
     # NEW: unified generation params (API-like)
     temperature: float = 0.0,
     max_tokens: int = 1024,
-
     # NEW: optional sampling controls
     top_p: float = 1.0,
     top_k: int = 0,
@@ -66,27 +68,27 @@ def extract_local(
 
     if mode == "plain":
         extractor = HFPlainExtractor(
-                model_name=model,
-                device=device,
-                max_new_tokens=max_tokens,
-                do_sample=do_sample,
-                temperature=temperature,
-                top_p=top_p,
-                top_k=top_k,
-                seed=seed,
-            )
+            model_name=model,
+            device=device,
+            max_new_tokens=max_tokens,
+            do_sample=do_sample,
+            temperature=temperature,
+            top_p=top_p,
+            top_k=top_k,
+            seed=seed,
+        )
     elif mode == "chat_lora":
         extractor = HFChatLoRAExtractor(
-                base_model=model,
-                lora_path=lora_path,
-                device=device,
-                max_new_tokens=max_tokens,
-                do_sample=do_sample,
-                temperature=temperature,
-                top_p=top_p,
-                top_k=top_k,
-                seed=seed,
-            )
+            base_model=model,
+            lora_path=lora_path,
+            device=device,
+            max_new_tokens=max_tokens,
+            do_sample=do_sample,
+            temperature=temperature,
+            top_p=top_p,
+            top_k=top_k,
+            seed=seed,
+        )
     else:
         raise ValueError(f"Unknown mode: {mode}")
 

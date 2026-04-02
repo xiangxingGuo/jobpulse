@@ -1,10 +1,12 @@
 # src/config.py
 from __future__ import annotations
+
+import os
+import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List, Tuple
-import os
-import uuid
+
 
 def _env_int(name: str, default: int) -> int:
     try:
@@ -12,17 +14,20 @@ def _env_int(name: str, default: int) -> int:
     except Exception:
         return default
 
+
 def _env_float(name: str, default: float) -> float:
     try:
         return float(os.getenv(name, str(default)))
     except Exception:
         return default
 
+
 def _env_bool(name: str, default: bool) -> bool:
     v = os.getenv(name)
     if v is None:
         return default
     return v.strip().lower() in ("1", "true", "yes", "y", "on")
+
 
 @dataclass(frozen=True)
 class ScrapeConfig:
@@ -43,9 +48,15 @@ class ScrapeConfig:
     selector_timeout_ms: int = _env_int("SELECTOR_TIMEOUT_MS", 8000)
 
     # Rate limiting / politeness
-    sleep_range_sec: Tuple[float, float] = (_env_float("SLEEP_MIN", 1.5), _env_float("SLEEP_MAX", 3.8))
+    sleep_range_sec: Tuple[float, float] = (
+        _env_float("SLEEP_MIN", 1.5),
+        _env_float("SLEEP_MAX", 3.8),
+    )
     extra_pause_prob: float = _env_float("EXTRA_PAUSE_PROB", 0.12)
-    extra_pause_range_sec: Tuple[float, float] = (_env_float("EXTRA_PAUSE_MIN", 5.0), _env_float("EXTRA_PAUSE_MAX", 12.0))
+    extra_pause_range_sec: Tuple[float, float] = (
+        _env_float("EXTRA_PAUSE_MIN", 5.0),
+        _env_float("EXTRA_PAUSE_MAX", 12.0),
+    )
 
     # Retries
     max_retries: int = _env_int("MAX_RETRIES", 2)
@@ -55,12 +66,14 @@ class ScrapeConfig:
     # Quality gates
     require_jobs_path: bool = _env_bool("REQUIRE_JOBS_PATH", True)
     min_description_len: int = _env_int("MIN_DESC_LEN", 250)
-    bad_markers: List[str] = field(default_factory=lambda: [
-        "jobs based on your profile",
-        "sign up for event reminders",
-        "jobs in your collections",
-        "company ratings",
-    ])
+    bad_markers: List[str] = field(
+        default_factory=lambda: [
+            "jobs based on your profile",
+            "sign up for event reminders",
+            "jobs in your collections",
+            "company ratings",
+        ]
+    )
 
     # Evidence / sampling (for debugging & interview artifacts)
     artifact_dir: Path = Path(os.getenv("ARTIFACT_DIR", "data/artifacts/scrape"))

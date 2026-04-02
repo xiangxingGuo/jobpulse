@@ -1,4 +1,5 @@
 from pathlib import Path
+
 from playwright.sync_api import sync_playwright
 
 STATE_PATH = Path("data/auth_state.json")
@@ -40,6 +41,7 @@ def main():
         print("Link:", BASE + href)
 
         browser.close()
+
 
 if __name__ == "__main__":
     main()

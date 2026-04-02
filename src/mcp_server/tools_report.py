@@ -1,14 +1,19 @@
 from __future__ import annotations
 
 import json
-from typing import Any, Dict, Optional, Literal
+from typing import Any, Dict, Literal, Optional
 
-from src.orch.schema import JobStructured, QCResult, MatchOutput, ReportOutput
 from src.llm.providers.openai_compat_client import OpenAICompatClient
 from src.llm.providers.openai_compat_providers import PROVIDERS, ProviderName
+from src.orch.schema import JobStructured, MatchOutput, QCResult, ReportOutput
 
 
-def _build_report_prompt(structured: JobStructured, qc: QCResult, match: Optional[MatchOutput], resume_text: Optional[str]) -> str:
+def _build_report_prompt(
+    structured: JobStructured,
+    qc: QCResult,
+    match: Optional[MatchOutput],
+    resume_text: Optional[str],
+) -> str:
     return (
         "You are a career assistant. Write a concise markdown report.\n"
         "Rules:\n"
@@ -24,6 +29,7 @@ def _build_report_prompt(structured: JobStructured, qc: QCResult, match: Optiona
         f"MATCH:\n{json.dumps(match, ensure_ascii=False, indent=2) if match else 'null'}\n\n"
         f"RESUME_TEXT:\n{resume_text or ''}\n"
     )
+
 
 def _get_message_text(resp: Dict[str, Any]) -> str:
     try:
@@ -56,7 +62,6 @@ def _get_message_text(resp: Dict[str, Any]) -> str:
         return v
 
     return ""
-
 
 
 async def generate_report_api(
@@ -106,7 +111,9 @@ async def generate_report_api(
         payload["extra_body"] = {"thinking": {"type": "enabled"}}
 
     if provider == "openai":
-        payload.pop("extra_body", None)  # OpenAI doesn't support thinking control (ignore if present)
+        payload.pop(
+            "extra_body", None
+        )  # OpenAI doesn't support thinking control (ignore if present)
 
     resp = await client.chat_completions(payload)
 
@@ -115,7 +122,6 @@ async def generate_report_api(
 
     if not content.strip():
         content = json.dumps(resp, ensure_ascii=False)
-
 
     return {
         "job_id": job_id,

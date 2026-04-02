@@ -19,16 +19,20 @@ ARTIFACTS_DIR = Path(os.getenv("ARTIFACT_DIR", "data/artifacts")) / "mcp"
 # IO helpers
 # ----------------------------
 
+
 def _ts() -> str:
     return time.strftime("%Y-%m-%d %H:%M:%S")
+
 
 def _write_text(path: Path, text: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(text, encoding="utf-8")
 
+
 def _write_json(path: Path, obj: Any) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(obj, ensure_ascii=False, indent=2), encoding="utf-8")
+
 
 def _tool_result_text(res: Any) -> str:
     parts = []
@@ -37,6 +41,7 @@ def _tool_result_text(res: Any) -> str:
         if isinstance(t, str):
             parts.append(t)
     return "".join(parts)
+
 
 def _tool_result_json(res: Any, tool_name: str) -> Any:
     if getattr(res, "is_error", False):
@@ -58,6 +63,7 @@ def _tool_result_json(res: Any, tool_name: str) -> Any:
 # Config & Metrics
 # ----------------------------
 
+
 @dataclass(frozen=True)
 class RunOneConfig:
     job_id: str
@@ -68,7 +74,7 @@ class RunOneConfig:
     fallback_to_api: bool = True
 
     # api provider/model
-    provider: str = "openai"          # openai|nvidia
+    provider: str = "openai"  # openai|nvidia
     model: Optional[str] = None
     prompt_name: str = "jd_extract_v2"
 
@@ -117,7 +123,10 @@ class RunOneMetrics:
 # Core runner
 # ----------------------------
 
-async def _call_tool(session: ClientSession, trace: list[dict[str, Any]], name: str, args: Dict[str, Any]) -> Any:
+
+async def _call_tool(
+    session: ClientSession, trace: list[dict[str, Any]], name: str, args: Dict[str, Any]
+) -> Any:
     t0 = time.time()
     trace.append({"t": _ts(), "step": name, "status": "start", "args_keys": sorted(args.keys())})
     res = await session.call_tool(name, args)
@@ -125,6 +134,7 @@ async def _call_tool(session: ClientSession, trace: list[dict[str, Any]], name: 
     dt = time.time() - t0
     trace.append({"t": _ts(), "step": name, "status": "ok", "elapsed_s": round(dt, 3)})
     return payload, dt
+
 
 async def run_one(cfg: RunOneConfig) -> None:
     server_params = StdioServerParameters(
@@ -157,7 +167,9 @@ async def run_one(cfg: RunOneConfig) -> None:
             _write_json(job_dir / "fetch.json", fetch_payload)
 
             # Helper to run QC
-            async def qc(structured: Any, parse_ok: bool, parse_repaired: bool, extractor: dict) -> Tuple[dict, float]:
+            async def qc(
+                structured: Any, parse_ok: bool, parse_repaired: bool, extractor: dict
+            ) -> Tuple[dict, float]:
                 qc_args = {
                     "job_id": cfg.job_id,
                     "structured": structured,
@@ -199,8 +211,16 @@ async def run_one(cfg: RunOneConfig) -> None:
 
                     metrics.local["parse_ok"] = parse_ok
                     _write_json(job_dir / "structured_local.json", structured)
-                    _write_json(job_dir / "extract_local_meta.json", {k: local_payload.get(k) for k in ["parse_ok", "parse_repaired", "usage", "extractor"]})
-                    _write_text(job_dir / "extract_local_raw.txt", local_payload.get("raw_output", ""))
+                    _write_json(
+                        job_dir / "extract_local_meta.json",
+                        {
+                            k: local_payload.get(k)
+                            for k in ["parse_ok", "parse_repaired", "usage", "extractor"]
+                        },
+                    )
+                    _write_text(
+                        job_dir / "extract_local_raw.txt", local_payload.get("raw_output", "")
+                    )
 
                     qc_local, dt = await qc(structured, parse_ok, parse_repaired, extractor)
                     metrics.record_ms("qc_local", dt)
@@ -210,20 +230,27 @@ async def run_one(cfg: RunOneConfig) -> None:
 
                     local_ok = (qc_local.get("status") == "pass") and structured is not None
                 except Exception as e:
-                    trace.append({"t": _ts(), "step": "extract_local", "status": "fail", "error": str(e)[:400]})
+                    trace.append(
+                        {
+                            "t": _ts(),
+                            "step": "extract_local",
+                            "status": "fail",
+                            "error": str(e)[:400],
+                        }
+                    )
                     metrics.local["parse_ok"] = False
                     metrics.local["qc"] = "error"
                     metrics.fallback_reason = metrics.fallback_reason or "local_error"
 
             # 3) if local ok -> report; else fallback to api if enabled
             chosen_structured = None
-            chosen_extractor = None
+            # chosen_extractor = None
             chosen_qc = None
 
             if local_ok:
                 metrics.route = "local_only"
                 chosen_structured = local_payload.get("structured")
-                chosen_extractor = local_payload.get("extractor", {"mode": "local"})
+                # chosen_extractor = local_payload.get("extractor", {"mode": "local"})
                 chosen_qc = qc_local
             else:
                 if cfg.local_first and cfg.fallback_to_api:
@@ -266,7 +293,13 @@ async def run_one(cfg: RunOneConfig) -> None:
 
                 metrics.api["parse_ok"] = parse_ok
                 _write_json(job_dir / "structured_api.json", structured)
-                _write_json(job_dir / "extract_api_meta.json", {k: api_payload.get(k) for k in ["parse_ok", "parse_repaired", "usage", "extractor"]})
+                _write_json(
+                    job_dir / "extract_api_meta.json",
+                    {
+                        k: api_payload.get(k)
+                        for k in ["parse_ok", "parse_repaired", "usage", "extractor"]
+                    },
+                )
                 _write_text(job_dir / "extract_api_raw.txt", api_payload.get("raw_output", ""))
 
                 qc_api, dt = await qc(structured, parse_ok, parse_repaired, extractor)
@@ -275,7 +308,7 @@ async def run_one(cfg: RunOneConfig) -> None:
                 _write_json(job_dir / "qc_api.json", qc_api)
 
                 chosen_structured = structured
-                chosen_extractor = extractor
+                # chosen_extractor = extractor
                 chosen_qc = qc_api
 
             # 4) generate_report_api (only if QC pass)
@@ -297,13 +330,24 @@ async def run_one(cfg: RunOneConfig) -> None:
                 metrics.record_ms("generate_report_api", dt)
 
                 _write_text(job_dir / "report.md", rep_payload.get("report_md", ""))
-                _write_json(job_dir / "report_meta.json", {k: rep_payload.get(k) for k in ["usage", "meta"]})
+                _write_json(
+                    job_dir / "report_meta.json", {k: rep_payload.get(k) for k in ["usage", "meta"]}
+                )
             else:
-                trace.append({"t": _ts(), "step": "generate_report_api", "status": "skipped", "reason": "qc_fail_or_no_structured"})
+                trace.append(
+                    {
+                        "t": _ts(),
+                        "step": "generate_report_api",
+                        "status": "skipped",
+                        "reason": "qc_fail_or_no_structured",
+                    }
+                )
 
             metrics.final_qc = chosen_qc.get("status") if chosen_qc else "fail"
             elapsed = time.time() - t0
-            trace.append({"t": _ts(), "step": "done", "status": "ok", "elapsed_s": round(elapsed, 2)})
+            trace.append(
+                {"t": _ts(), "step": "done", "status": "ok", "elapsed_s": round(elapsed, 2)}
+            )
 
             _write_json(job_dir / "trace.json", trace)
             _write_json(job_dir / "run_one_summary.json", metrics.summary(elapsed))

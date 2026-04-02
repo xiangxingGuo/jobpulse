@@ -24,7 +24,9 @@ class JobRunArtifactWriter:
     def __init__(self, base_dir: str | Path) -> None:
         self.base_dir = Path(base_dir)
 
-    def write(self, *, run_id: str, job_id: str, state: Dict[str, Any], summary: Dict[str, Any]) -> Path:
+    def write(
+        self, *, run_id: str, job_id: str, state: Dict[str, Any], summary: Dict[str, Any]
+    ) -> Path:
         job_dir = self.base_dir / run_id / job_id
         job_dir.mkdir(parents=True, exist_ok=True)
 
@@ -55,7 +57,9 @@ class JobRunArtifactWriter:
         selected_extract_idx = extraction_state.get("selected_attempt")
 
         selected_extract: Dict[str, Any] = {}
-        if isinstance(selected_extract_idx, int) and 0 <= selected_extract_idx < len(extract_attempts):
+        if isinstance(selected_extract_idx, int) and 0 <= selected_extract_idx < len(
+            extract_attempts
+        ):
             selected_extract = extract_attempts[selected_extract_idx]
         elif extract_attempts:
             selected_extract = extract_attempts[-1]

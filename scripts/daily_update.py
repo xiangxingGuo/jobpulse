@@ -1,6 +1,8 @@
 from __future__ import annotations
+
 import subprocess
 import sys
+
 
 def run(cmd: list[str]) -> None:
     print(">", " ".join(cmd), flush=True)
@@ -8,15 +10,23 @@ def run(cmd: list[str]) -> None:
     if rc != 0:
         raise SystemExit(rc)
 
+
 def main() -> None:
-    run([
-        "xvfb-run", "-a",
-        sys.executable, "scripts/run_pipeline.py",
-        "--pages", "4",
-        "--limit", "100",
-        "--headed",
-    ])
+    run(
+        [
+            "xvfb-run",
+            "-a",
+            sys.executable,
+            "scripts/run_pipeline.py",
+            "--pages",
+            "4",
+            "--limit",
+            "100",
+            "--headed",
+        ]
+    )
     run([sys.executable, "scripts/build_vector_index.py"])
+
 
 if __name__ == "__main__":
     main()

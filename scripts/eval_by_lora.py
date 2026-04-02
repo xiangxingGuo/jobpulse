@@ -1,16 +1,21 @@
-from eval_base import Eval_Base, load_val, extract_prompt
-from src.llm.providers.hf_chat_lora import HFChatLoRAExtractor
-import json
-from pathlib import Path
-from typing import Dict, Any, List
-from src.eval.extraction_metrics import REQUIRED_KEYS, LIST_KEYS
 import argparse
+from pathlib import Path
+
+from eval_base import Eval_Base, extract_prompt, load_val
+
+from src.llm.providers.hf_chat_lora import HFChatLoRAExtractor
+
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--out_dir", type=str, default="data/reports")
     parser.add_argument("--model_name", type=str, default="Qwen/Qwen2.5-0.5B-Instruct")
-    parser.add_argument("--lora_path", type=str, default="models/qwen2.5-0.5b-jd-lora", help="Path to the LoRA weights directory")
+    parser.add_argument(
+        "--lora_path",
+        type=str,
+        default="models/qwen2.5-0.5b-jd-lora",
+        help="Path to the LoRA weights directory",
+    )
     parser.add_argument("--device", type=str, default="cuda")
     parser.add_argument("--max_new_tokens", type=int, default=512)
     args = parser.parse_args()
@@ -48,6 +53,6 @@ def main():
     conv = eval.compute_coverage(preds)
     print("Prediction coverage:", conv)
 
+
 if __name__ == "__main__":
     main()
-

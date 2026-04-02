@@ -6,13 +6,32 @@ from typing import Any
 from src.db import fetch_job_detail
 from src.retrieval.search import JobSearchService
 
-
 CANONICAL_SKILLS = [
-    "python", "pytorch", "tensorflow", "scikit-learn", "sklearn",
-    "sql", "docker", "kubernetes", "aws", "gcp", "azure",
-    "fastapi", "streamlit", "faiss", "langgraph", "transformers",
-    "llm", "rag", "mlops", "airflow", "spark", "pandas",
-    "numpy", "linux", "git"
+    "python",
+    "pytorch",
+    "tensorflow",
+    "scikit-learn",
+    "sklearn",
+    "sql",
+    "docker",
+    "kubernetes",
+    "aws",
+    "gcp",
+    "azure",
+    "fastapi",
+    "streamlit",
+    "faiss",
+    "langgraph",
+    "transformers",
+    "llm",
+    "rag",
+    "mlops",
+    "airflow",
+    "spark",
+    "pandas",
+    "numpy",
+    "linux",
+    "git",
 ]
 
 
