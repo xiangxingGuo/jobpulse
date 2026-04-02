@@ -67,6 +67,7 @@ class HFLocalExtractor:
             # Slow fallback (rare cases)
             return slow_fallback_extract_last_json(text)
 
+
 def slow_fallback_extract_last_json(text: str) -> dict:
     """
     Fallback method to extract the last JSON object from text, used when the fast method fails.
