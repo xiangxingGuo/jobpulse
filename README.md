@@ -1,3 +1,4 @@
+![CI](https://github.com/xiangxingGuo/jobpulse/actions/workflows/ci.yml/badge.svg)
 # JobPulse
 
 > From raw job postings → structured intelligence → personalized career decisions.
