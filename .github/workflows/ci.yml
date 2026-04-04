@@ -1,4 +1,4 @@
-name: CI
+name: CI-CD
 
 on:
   push:
@@ -43,3 +43,21 @@ jobs:
 
       - name: Build UI Docker image
         run: docker build -f docker/Dockerfile.ui -t jobpulse-ui .
+
+  deploy-to-ec2:
+    if: github.ref == 'refs/heads/main'
+    needs: test-and-build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy to EC2 via SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            set -e
+            cd ~/jobpulse
+            git pull
+            docker compose -f infra/docker-compose.yml up -d --build
