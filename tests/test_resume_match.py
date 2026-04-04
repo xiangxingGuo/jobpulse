@@ -22,9 +22,7 @@ class MockJobSearchService:
 # Mock fetch_job_detail
 # ---------------------------
 def mock_fetch_job_detail(job_id):
-    return {
-        "skills": ["Python", "Docker", "AWS"]
-    }
+    return {"skills": ["Python", "Docker", "AWS"]}
 
 
 # ---------------------------
@@ -32,18 +30,10 @@ def mock_fetch_job_detail(job_id):
 # ---------------------------
 def test_match_resume_to_jobs(monkeypatch):
     # JobSearchService
-    monkeypatch.setattr(
-        resume_match,
-        "JobSearchService",
-        lambda: MockJobSearchService()
-    )
+    monkeypatch.setattr(resume_match, "JobSearchService", lambda: MockJobSearchService())
 
     # fetch_job_detail
-    monkeypatch.setattr(
-        resume_match,
-        "fetch_job_detail",
-        mock_fetch_job_detail
-    )
+    monkeypatch.setattr(resume_match, "fetch_job_detail", mock_fetch_job_detail)
 
     resume_text = "I have experience with Python, Docker, and AWS."
 
