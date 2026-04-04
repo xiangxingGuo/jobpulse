@@ -1,5 +1,3 @@
-import pytest
-
 from src.retrieval import resume_match
 
 
